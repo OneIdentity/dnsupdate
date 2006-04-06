@@ -19,6 +19,7 @@
 #define GSS_TSIG		"gss-tsig"
 
 static uint16_t next_id = 1;
+int vflag;
 
 /* Returns a unique message ID for this session */
 static uint16_t
@@ -27,13 +28,15 @@ unique_id()
     return next_id++;
 }
 
+/* Initialises the unique ID stream */
 void
 init_unique_id()
 {
+    srandom(time(0) * getpid());
     next_id = random();
-
 }
 
+/* Returns true if two DNS names are the same */
 static int
 name_eq(const char *a, const char *b)
 {
@@ -55,9 +58,11 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
 #if 1
     buf[i] = 0;
 #else
+    /* Problem with compression somewhere? */
     snprintf(buf + 31, bufsz- 31, ".%s", fqdn);
 #endif
-    fprintf(stderr, "using key %s\n", buf);
+    if (vflag)
+	fprintf(stderr, "using TKEY %s\n", buf);
 }
 
 struct verify_context {
@@ -84,10 +89,12 @@ verify(const void *buf, size_t buflen, const char *key_name,
     major = gss_verify_mic(&minor, ctx->gssctx, &msgbuf, &tokbuf, &qop);
     if (GSS_ERROR(major)) {
 	fprintf(stderr, "gss_verify_mic: failed! major=0x%x\n", major);
-	fprintf(stderr, "mac used was:\n");
-	dumphex(tokbuf.value, tokbuf.length);
-	fprintf(stderr, "msg used was:\n");
-	dumphex(msgbuf.value, msgbuf.length);
+	if (vflag) {
+	    fprintf(stderr, "mac used was:\n");
+	    dumphex(tokbuf.value, tokbuf.length);
+	    fprintf(stderr, "msg used was:\n");
+	    dumphex(msgbuf.value, msgbuf.length);
+	}
 	return 0;
     }
     return 1;
@@ -108,7 +115,8 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
     if (GSS_ERROR(major))
 	errx(1, "gss_get_mic: failed! major=0x%x", major);
 
-    fprintf(stderr, "sign: signed %u bytes of data -> %u byte mic\n",
+    if (vflag)
+	fprintf(stderr, "sign: signed %u bytes of data -> %u byte mic\n",
 	    msgbuf.length, tokbuf.length);
 
     mac = malloc(tokbuf.length);
@@ -120,6 +128,10 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
     return mac;
 }
 
+/*
+ * Perform a DNS update
+ * Returns 0 on error.
+ */
 static int
 update(int s, struct verify_context *vctx, 
 	const char *fqdn, uint16_t utype, uint16_t uclass, 
@@ -183,16 +195,23 @@ update(int s, struct verify_context *vctx,
     dns_wr_rr_head(msg, &addrr);
     dns_wr_data(msg, udata, udatalen);
 
-    dns_tsig_sign(msg, vctx->key_name, GSS_MICROSOFT_COM, 36000, NULL, 0,
-	    sign, vctx);
+    if (vctx)
+	dns_tsig_sign(msg, vctx->key_name, GSS_MICROSOFT_COM, 36000, NULL, 0,
+		sign, vctx);
     dns_wr_finish(msg);
 
-    fprintf(stderr, "sending update...\n");
+    if (vflag)
+	fprintf(stderr, "sending update...\n");
     dnstcp_sendmsg(s, msg);
-    dumpmsg(msg);
-    fprintf(stderr, "\n");
 
-    fprintf(stderr, "waiting for update reply\n");
+    if (vflag) {
+	if (vflag > 1) {
+	    dumpmsg(msg);
+	    fprintf(stderr, "\n");
+	}
+	fprintf(stderr, "waiting for update reply\n");
+    }
+
     len = dnstcp_recv(s, buffer, sizeof buffer);
     if (len <= 0) {
 	fprintf(stderr, "no reply to update?\n");
@@ -200,13 +219,24 @@ update(int s, struct verify_context *vctx,
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    dumpmsg(msg);
-    fprintf(stderr, "\n");
+    if (vflag > 1) {
+	dumpmsg(msg);
+	fprintf(stderr, "\n");
+    }
 
     dns_rd_header(msg, &rheader);
-    if (rheader.id != header.id) goto fail;
-    if (rheader.opcode != DNS_OP_UPDATE) goto fail;
-    if (rheader.rcode != DNS_NOERROR) goto fail;
+    if (rheader.id != header.id || rheader.opcode != DNS_OP_UPDATE) {
+	fprintf(stderr, "bad reply to update request\n");
+	goto fail;
+    }
+    if (vflag)
+	fprintf(stderr, "server response: %s\n",
+	    dns_rcode_name(rheader.rcode));
+    if (rheader.rcode != DNS_NOERROR) {
+	fprintf(stderr, "error: server failed to update: %s\n",
+	    dns_rcode_name(rheader.rcode));
+	goto fail;
+    }
 
     /* TODO: verify the packet TSIG */
 
@@ -217,8 +247,12 @@ fail:
     return 0;
 }
 
+/* 
+ * Negotiate a GSS TKEY, and then call update()
+ * Returns 0 on failure
+ */
 static int
-dostuff(vas_ctx_t *ctx, vas_id_t *id, int s,
+gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	const char *server, const char *fqdn, const char *domain,
 	uint16_t utype, uint16_t uclass, uint32_t uttl,
 	const void *udata, size_t udatalen)
@@ -241,7 +275,8 @@ dostuff(vas_ctx_t *ctx, vas_id_t *id, int s,
     /* The domain server's principal name */
     snprintf(server_principal, sizeof server_principal,
 	    "dns/%s@%s", server, domain);
-    fprintf(stderr, "target service: %s\n", server_principal);
+    if (vflag)
+	fprintf(stderr, "target service: %s\n", server_principal);
 
     /* Perform the GSS rounds */
     gssctx = GSS_C_NO_CONTEXT;
@@ -300,32 +335,39 @@ dostuff(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    dns_tkey_wr(msg, &tkey);
 	    dns_wr_finish(msg);
 
-	    fprintf(stderr, "sending:\n");
+	    if (vflag)
+		fprintf(stderr, "sending:\n");
 	    bufferlen = dnstcp_sendmsg(s, msg);
 	    if (bufferlen == -1)
 		goto fail;
 
-	    dumpmsg(msg);
-	    fprintf(stderr, "\n");
+	    if (vflag > 1) {
+		dumpmsg(msg);
+		fprintf(stderr, "\n");
+	    }
 
 	    dns_msg_free(msg);
 	    (void)gss_release_buffer(&minor, &outtok);
 	} else {
-	    fprintf(stderr, "no output token this round\n");
+	    if (vflag)
+		fprintf(stderr, "no output token needed after this round\n");
 	}
 
 	if (major == GSS_S_CONTINUE_NEEDED) {
 	    struct dns_msg *msg = dns_msg_new();
 	    struct dns_header recv_header;
 
-	    fprintf(stderr, "waiting for reply\n");
+	    if (vflag)
+		fprintf(stderr, "waiting for reply\n");
 	    bufferlen = dnstcp_recv(s, buffer, sizeof buffer);
 	    if (bufferlen <= 0)
 		goto fail;
 	    dns_msg_setbuf(msg, buffer, bufferlen);
 
-	    dumpmsg(msg);
-	    fprintf(stderr, "\n");
+	    if (vflag > 1) {
+		dumpmsg(msg);
+		fprintf(stderr, "\n");
+	    }
 
 	    dns_rd_header(msg, &recv_header);
 	    assert(recv_header.id == header.id);
@@ -364,7 +406,8 @@ dostuff(vas_ctx_t *ctx, vas_id_t *id, int s,
 	} else
 	    break;
     }
-    fprintf(stderr, "gss context established\n");
+    if (vflag)
+	fprintf(stderr, "gss context established\n");
 
     vctx.gssctx = gssctx;
     vctx.key_name = key_name;
@@ -375,8 +418,10 @@ dostuff(vas_ctx_t *ctx, vas_id_t *id, int s,
 	dns_msg_setbuf(msg, buffer, bufferlen);
 	dns_tsig_verify(msg, verify, &vctx);
 	dns_msg_free(msg);
-	fprintf(stderr, "TSIG verified\n");
-    }
+	if (vflag)
+	    fprintf(stderr, "TSIG verified\n");
+    } else
+	fprintf(stderr, "warning: final TSIG from server was not signed\n");
 
     return update(s, &vctx, fqdn, utype, uclass, uttl, udata, udatalen);
 
@@ -384,31 +429,104 @@ fail:
     return 0;
 }
 
+static int
+aton(const char *s, unsigned char *ipaddr)
+{
+    unsigned int octet[4];
+    if (sscanf(s, "%u.%u.%u.%u", octet, octet+1, octet+2, octet+3) != 4 ||
+	octet[0] > 255 || octet[1] > 255 ||
+	octet[2] > 255 || octet[3] > 255)
+	    return 0;
+    ipaddr[0] = octet[0];
+    ipaddr[1] = octet[1];
+    ipaddr[2] = octet[2];
+    ipaddr[3] = octet[3];
+    return 1;
+}
+
 int
-main()
+main(int argc, char **argv)
 {
     int s;
     char **servers, **serverp;
     vas_ctx_t *vas_ctx;
     vas_err_t error;
-    char *domain, *fqdn, *localdn;
+    char *domain = NULL;
+    char *fqdn = NULL;
+    char *nameserver=NULL;
+    char *spn = "host/";
     int ret;
     vas_id_t *local_id;
     vas_computer_t *local_computer;
-    const unsigned char ipaddr[4] = { 10,20,36,144 };
+    unsigned char ipaddr[4];
+    char *user_servers[2];
+    unsigned int ttl = 60*60;
+    int ch;
+    int opterror = 0;
 
-    extern void vas_log_init(int,int,int,const char *,int);
-    vas_log_init(4,5,5,NULL,0);
+    while ((ch = getopt(argc, argv, "d:h:s:t:v")) != -1)
+	switch (ch) {
+	case 'd':
+	    domain = optarg;
+	    break;
+	case 'h':
+	    fqdn = optarg;
+	    break;
+	case 's':
+	    nameserver = optarg;
+	    break;
+	case 't':
+	    ttl = atoi(optarg);
+	    if (!ttl && strcmp(optarg, "0") != 0) {
+		fprintf(stderr, "bad ttl number\n");
+		opterror = 1;
+	    }
+	    break;
+	case 'v':
+	    vflag++;
+	    break;
+	default:
+	    opterror = 1;
+	    break;
+	}
 
+    if (!(optind < argc && aton(argv[optind++], ipaddr)))
+	opterror = 1;
+
+    if (optind != argc)
+	opterror = 1;
+
+    if (opterror) {
+	fprintf(stderr, "usage: %s"
+			" [-d domain]"
+			" [-h hostname]"
+			" [-s nameserver]"
+		        " [-t ttl]"
+	       		" [-v]"
+			" ipaddr\n", argv[0]);
+	exit(2);
+    }
+
+    if (vflag) {
+	fprintf(stderr, "spn: %s\n", spn);
+	fprintf(stderr, "ttl: %u\n", ttl);
+	fprintf(stderr, "ipaddr: %u.%u.%u.%u\n", 
+		ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
+    }
+
+    /* Initialise random number generator */
+    init_unique_id();
+
+    /* Enable VAS debugging */
+    { extern void vas_log_init(int,int,int,const char *,int);
+      vas_log_init(4,5,5,NULL,0); }
+
+    /* Obtain a VAS context */
     error = vas_ctx_alloc(&vas_ctx);
     if (error != VAS_ERR_SUCCESS)
     	errx(1, "vas_ctx_alloc");
 
-    error = vas_info_joined_domain(vas_ctx, &domain, NULL);
-    if (error)
-	errx(1, "vas_info_joined_domain: %s", vas_err_get_string(vas_ctx, 1));
-
-    error = vas_id_alloc(vas_ctx, "host/", &local_id);
+    error = vas_id_alloc(vas_ctx, spn, &local_id);
     if (error)
 	errx(1, "vas_id_alloc: %s", vas_err_get_string(vas_ctx, 1));
 
@@ -418,67 +536,61 @@ main()
 	errx(1, "vas_id_establish_cred_keytab: %s", 
 		vas_err_get_string(vas_ctx, 1));
 
-    fprintf(stderr, "calling vas_id_get_name\n");
-    error = vas_id_get_name(vas_ctx, local_id, NULL, &localdn);
-    if (error)
-	errx(1, "vas_id_get_name: %s", vas_err_get_string(vas_ctx, 1));
-    fprintf(stderr, "localdn=%s\n", localdn);
+    if (!fqdn) {
+	error = vas_computer_init(vas_ctx, local_id, spn, 
+			VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
+	if (error)
+	    errx(1, "vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
 
-    fprintf(stderr, "calling vas_computer_init\n");
-    error = vas_computer_init(vas_ctx, local_id, "host/", VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
-    if (error)
-	errx(1, "vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
-
-    error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
-	    &fqdn);
-    if (error)
-	errx(1, "vas_computer_get_dns_hostname: %s",
-		vas_err_get_string(vas_ctx, 1));
-
-#if 0
-    { char *p;
-      for (p = fqdn; *p; p++)
-	  if (*p >= 'A' && *p <= 'Z') (*p) += 'a' - 'A';
-      for (p = domain; *p; p++)
-	  if (*p >= 'A' && *p <= 'Z') (*p) += 'a' - 'A';
+	error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
+		&fqdn);
+	if (error)
+	    errx(1, "vas_computer_get_dns_hostname: %s",
+		    vas_err_get_string(vas_ctx, 1));
+	if (vflag)
+	    fprintf(stderr, "hostname: %s\n", fqdn);
     }
-#endif
 
-    /*
-    domain = "rcdev.vintela.com";
-    fqdn = "willy-wagtail.rcdev.vintela.com";
-    */
+    if (!domain) {
+	error = vas_info_joined_domain(vas_ctx, &domain, NULL);
+	if (error)
+	    errx(1, "vas_info_joined_domain: %s", 
+		    vas_err_get_string(vas_ctx, 1));
+    }
+    if (vflag)
+	fprintf(stderr, "domain: %s\n", domain);
 
-    fprintf(stderr, "domain=%s\n", domain);
-    fprintf(stderr, "fqdn=%s\n", fqdn);
-    
-    /* Connect to a server */
-    error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
-	    &servers);
-    if (error)
-	errx(1, "vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
+    if (nameserver) {
+	user_servers[0] = nameserver;
+	user_servers[1] = NULL;
+	servers = user_servers;
+    } else {
+	/* Connect to a server */
+	error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
+		&servers);
+	if (error)
+	    errx(1, "vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
+    }
 
-    srandom(time(0) * getpid());
-    init_unique_id();
-
+    /* Contact each known server, until one works */
+    ret = 0;
     for (serverp = servers; *serverp; serverp++) {
-	fprintf(stderr, "trying %s...\n", *serverp);
+	if (vflag)
+	    fprintf(stderr, "trying %s...\n", *serverp);
 	s = dnstcp_connect(*serverp);
 	if (s != -1) {
-	    ret = dostuff(vas_ctx, local_id, s, *serverp, fqdn, domain,
-		    DNS_TYPE_A, DNS_CLASS_IN, 36000, ipaddr, sizeof ipaddr);
+	    ret = gss_update(vas_ctx, local_id, s, *serverp, fqdn, domain,
+		    DNS_TYPE_A, DNS_CLASS_IN, ttl, ipaddr, sizeof ipaddr);
 	    dnstcp_close(&s);
-	    if (ret == 1)
+	    if (ret)
 		break;
 	}
     }
 
-#if 0
-    free(fqdn);
-    free(localdn);
-#endif
     free(domain);
-    vas_info_servers_free(vas_ctx, servers);
+    if (!nameserver)
+	vas_info_servers_free(vas_ctx, servers);
     vas_ctx_free(vas_ctx);
-    exit(0);
+
+    exit(ret ? 0 : 1);
 }

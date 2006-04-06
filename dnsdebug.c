@@ -7,7 +7,7 @@
 #include "dns.h"
 #include "dnsdebug.h"
 
-int dumpdebug = 1;
+int dumpdebug = 0;
 
 /*
  * Debug/dump routines.

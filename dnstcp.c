@@ -126,7 +126,7 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    if (pos) warn("close after short read");
 	    return 0;
 	}
-	fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b);
+	/* fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b); */
     }
 
     msglen = (b[0] << 8) | b[1];
@@ -143,7 +143,7 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    warn("close after short read");
 	    return 0;
 	}
-	fprintf(stderr, "[read %d of %d]\n", pos+len, msglen);
+	/* fprintf(stderr, "[read %d of %d]\n", pos+len, msglen); */
     }
     return msglen;
 }
