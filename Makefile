@@ -1,4 +1,5 @@
-CFLAGS=	-Wall -O0 -ggdb $(shell vas-config --cflags)
+CFLAGS=	 $(shell vas-config --cflags) -I.
+#CFLAGS+= -Wall -O0 -ggdb 
 LDFLAGS= $(shell vas-config --libs)
 OBJS=	dnsupdate.o dns.o dnstcp.o dnsdebug.o dnstkey.o dnstsig.o
 PROG=	dnsupdate

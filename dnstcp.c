@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include "err.h"
 #include "dns.h"
 #include "dnstcp.h"
 
@@ -21,6 +22,7 @@
 
 static int  tcp_connect(const char *host, const char *service);
 
+#if 0
 /* Connects to a TCP service. Returns socket descriptor or -1 on failure. */
 static int
 tcp_connect(const char *host, const char *service)
@@ -59,6 +61,52 @@ tcp_connect(const char *host, const char *service)
 
     return s;
 }
+#else
+
+#include <netinet/in.h>
+static int
+tcp_connect(const char *host, const char *service)
+{
+    struct servent *servent;
+    struct hostent *hostent;
+    struct sockaddr_in sin;
+    int s, i;
+
+    servent = getservbyname(service, "tcp");
+    if (!servent) {
+	warnx("unknown service tcp/%s", service);
+	return -1;
+    }
+
+    hostent = gethostbyname(host);
+    if (!hostent) {
+	warnx("unknown host %s", host);
+	return -1;
+    }
+    assert(hostent->h_addrtype == AF_INET);
+    assert(hostent->h_length == sizeof sin.sin_addr);
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) {
+	warn("socket");
+	return -1;
+    }
+    memset(&sin, 0, sizeof sin);
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(servent->s_port);
+    memcpy(&sin.sin_addr, hostent->h_addr, sizeof sin.sin_addr);
+
+    printf("port = %u\n", servent->s_port);
+
+    if (connect(s, &sin, sizeof sin) < 0) {
+	warn("connect");
+	close(s);
+	return -1;
+    }
+
+    return s;
+}
+#endif
 
 /* 
  * Connects to a DNS server using TCP. 
@@ -135,7 +183,7 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	return -1;
     }
     for (pos = 0; pos < msglen; pos += len) {
-	if ((len = read(s, buf + pos, msglen - pos)) < 0) {
+	if ((len = read(s, (char *)buf + pos, msglen - pos)) < 0) {
 	    warn("read");
 	    return -1;
 	}
