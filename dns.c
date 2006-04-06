@@ -440,27 +440,26 @@ wr_name(struct dns_msg *msg, const char *name, int compress)
 
     assert(strlen(name) < 256);
 
-    if (*name)
-        while (*name) {
-	    if (*name == '.')
-		rd_error("too many dots in domain name");
-	    if (compress) {
-	        for (i = 0; i < msg->namecachelen; i++)
-		    if (strcmp(name, msg->namecache[i].name) == 0) {
-			uint16_t offset = msg->namecache[i].offset | 0xc000;
-			dns_wr_uint16(msg, offset);
-			return;
-		    }
-		strcpy(msg->namecache[cachelen].name, name);
-		msg->namecache[cachelen].offset = msg->pos;
-		cachelen++;
-	    }
-	    for (p = name; *p; p++)
-		if (*p == '.') break;
-	    wr_label(msg, p - name, name);
-	    name = p;
-	    if (*name == '.') name++;
+    while (*name) {
+	if (*name == '.')
+	    rd_error("too many dots in domain name");
+	if (compress) {
+	    for (i = 0; i < msg->namecachelen; i++)
+		if (strcmp(name, msg->namecache[i].name) == 0) {
+		    uint16_t offset = msg->namecache[i].offset | 0xc000;
+		    dns_wr_uint16(msg, offset);
+		    return;
+		}
+	    strcpy(msg->namecache[cachelen].name, name);
+	    msg->namecache[cachelen].offset = msg->pos;
+	    cachelen++;
 	}
+	for (p = name; *p; p++)
+	    if (*p == '.') break;
+	wr_label(msg, p - name, name);
+	name = p;
+	if (*name == '.') name++;	/* trailing dot is ok */
+    }
     wr_label(msg, 0, NULL);
     msg->namecachelen = cachelen;
 }
