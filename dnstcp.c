@@ -22,7 +22,7 @@
 
 static int  tcp_connect(const char *host, const char *service);
 
-#if 0
+#if !defined(HPUX)
 /* Connects to a TCP service. Returns socket descriptor or -1 on failure. */
 static int
 tcp_connect(const char *host, const char *service)
@@ -93,7 +93,7 @@ tcp_connect(const char *host, const char *service)
     }
     memset(&sin, 0, sizeof sin);
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(servent->s_port);
+    sin.sin_port = servent->s_port;	/* htons()?? */
     memcpy(&sin.sin_addr, hostent->h_addr, sizeof sin.sin_addr);
 
     printf("port = %u\n", servent->s_port);
