@@ -536,6 +536,11 @@ main(int argc, char **argv)
 	errx(1, "vas_id_establish_cred_keytab: %s", 
 		vas_err_get_string(vas_ctx, 1));
 
+    error = vas_gss_initialize(vas_ctx, local_id);
+    if (error)
+	errx(1, "vas_gss_initialize: %s", 
+		vas_err_get_string(vas_ctx, 1));
+
     if (!fqdn) {
 	error = vas_computer_init(vas_ctx, local_id, spn, 
 			VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
