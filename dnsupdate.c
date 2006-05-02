@@ -51,6 +51,7 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     static const char domainchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	                      "abcdefghijklmnopqrstuvwxyz"
 			      "0123456789-";
+
     /* Choose a random key for the TKEY */
     assert(bufsz > 31);
     for (i = 0; i < 31; i++)
@@ -464,10 +465,13 @@ main(int argc, char **argv)
     int ch;
     int opterror = 0;
 
+    /* XXX This is needed  */
+    dns_never_compress = 1;
+
     while ((ch = getopt(argc, argv, "d:h:s:t:v")) != -1)
 	switch (ch) {
 	case 'd':
-	    domain = optarg;
+	    domain = strdup(optarg);
 	    break;
 	case 'h':
 	    fqdn = optarg;
