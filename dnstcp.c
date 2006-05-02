@@ -21,6 +21,7 @@
  */
 
 static int  tcp_connect(const char *host, const char *service);
+extern int vflag;
 
 #if !defined(HPUX)
 /* Connects to a TCP service. Returns socket descriptor or -1 on failure. */
@@ -130,10 +131,14 @@ dnstcp_send(int s, const void *buf, size_t len)
 
     b[0] = (len >> 8) & 0xff;
     b[1] = len & 0xff;
+    if (vflag > 3) 
+	fprintf(stderr, "dnstcp_send: writing length %02x %02x\n", b[0], b[1]);
     if (write(s, b, sizeof b) != 2) {
 	warn("write");
 	return -1;
     }
+    if (vflag > 3) 
+	fprintf(stderr, "dnstcp_send: writing %d bytes to fd %d\n", len, s);
     if (len > 0 && write(s, buf, len) != len) {
 	warn("write");
 	return -1;
@@ -174,8 +179,10 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    if (pos) warn("close after short read");
 	    return 0;
 	}
-	/* fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b); */
+        if (vflag > 3)
+	   fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b);
     }
+
 
     msglen = (b[0] << 8) | b[1];
     if (msglen > bufsz) {
@@ -191,7 +198,8 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    warn("close after short read");
 	    return 0;
 	}
-	/* fprintf(stderr, "[read %d of %d]\n", pos+len, msglen); */
+        if (vflag > 3)
+	    fprintf(stderr, "[read %d of %d]\n", pos+len, msglen);
     }
     return msglen;
 }
