@@ -33,6 +33,8 @@
 static void (*error_handler)(const char *, void *);
 static void *error_handler_closure;
 
+int dns_never_compress = 0;
+
 /* Creates a new message with a zero-sized buffer */
 struct dns_msg *
 dns_msg_new()
@@ -467,7 +469,7 @@ wr_name(struct dns_msg *msg, const char *name, int compress)
 void
 dns_wr_name(struct dns_msg *msg, const char *name)
 {
-    wr_name(msg, name, 1);
+    wr_name(msg, name, dns_never_compress ? 0 : 1);
 }
 
 void

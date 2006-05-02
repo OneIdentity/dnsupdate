@@ -186,5 +186,6 @@ void   dns_rd_dec_arcount(struct dns_msg *msg);
 /* Returns an error code as a string */
 const char *dns_rcode_name(uint16_t rcode);
 
+extern int dns_never_compress;
 
 #endif
