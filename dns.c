@@ -1,9 +1,7 @@
 /* (c) 2006 Quest Software, Inc. All rights reserved. */
 /* David Leonard, 2006 */
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
+
+#include "common.h"
 #include "dns.h"
 
 /*
@@ -32,6 +30,8 @@
 /* Functions to call on error */
 static void (*error_handler)(const char *, void *);
 static void *error_handler_closure;
+static void rd_name(struct dns_msg *msg, char *buf, size_t bufsz, 
+	int canon_only);
 
 int dns_never_compress = 0;
 
@@ -319,8 +319,8 @@ dns_msg_getbuf(const struct dns_msg *msg, void **bufp, size_t *szp)
  * Reads a domain name from the buffer. Automatically decompresses.
  * The buffer is filled in with dot (.) used as a delimiter
  */
-void
-dns_rd_name(struct dns_msg *msg, char *buf, size_t bufsz)
+static void
+rd_name(struct dns_msg *msg, char *buf, size_t bufsz, int canon_only)
 {
     unsigned char b, b2;
     char *p = buf;
@@ -345,6 +345,8 @@ dns_rd_name(struct dns_msg *msg, char *buf, size_t bufsz)
 	    dns_rd_data_raw(msg, p, b);
 	    p += b;
 	} else {		/* compression pointer */
+	    if (canon_only)
+		rd_error("invalid name compression");
 	    if (pos_save)
 		rd_error("multiple compression");
 	    dns_rd_data_raw(msg, &b2, sizeof b2);
@@ -370,6 +372,18 @@ dns_rd_name(struct dns_msg *msg, char *buf, size_t bufsz)
 
 toosmall:
     rd_error("buffer is too small");
+}
+
+void
+dns_rd_name(struct dns_msg *msg, char *buf, size_t bufsz)
+{
+    rd_name(msg, buf, bufsz, 0);
+}
+
+void
+dns_rd_name_canon(struct dns_msg *msg, char *buf, size_t bufsz)
+{
+    rd_name(msg, buf, bufsz, 1);
 }
 
 /* Writes/appends binary data to the packet buffer */

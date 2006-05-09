@@ -1,0 +1,44 @@
+.\" (c) 2006, Quest Software, Inc. All rights reserved.
+.TH DNSUPDATE 8
+.SH NAME
+dnsupdate \- authenticated DNS update for Active Directory hosts
+.SH SYNOPSIS
+.B dnsupdate
+.RI [\-d\  domain ]
+.RI [\-h\  hostname ]
+.RI [\-s\  nameserver ]
+.RI [\-t\  ttl ]
+[\-v]
+.I ip-addr
+.SH DESCRIPTION
+The
+.B dnsupdate
+tool updates the IP address of an Active Directory DNS entry.
+It should be run when the primary interface's IP address is configured
+(e.g. from a DHCP hook).
+.SS OPTIONS
+.TP
+.RI \-d\  domain
+the Active Directory domain (realm) in which to authenticate,
+defaults to the currently joined domain
+.TP
+.RI \-h\  hostname
+the fully qualified hostname entry to update,
+defaults to the DNS hostname associated with the current AD computer object
+.TP
+.RI \-s\  nameserver
+the nameserver to perform the dynamic DNS update operation on,
+defaults to the nearest domain controller with automatic fallback
+.TP
+.RI \-t\  ttl
+the cache lifetime in seconds to store with the new DNS entry,
+defaults to one hour
+.TP
+\-v
+increases the level of verbosity
+.SS "EXIT STATUS"
+The
+.B dnsupdate
+tool exits with status 0 only if the update operation failed.
+.SH AUTHORS
+David Leonard, Quest Software, Inc.

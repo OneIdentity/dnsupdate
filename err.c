@@ -1,7 +1,6 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
-#include <errno.h>
+/* (c) 2006, Quest Software, Inc. All rights reserved. */
+
+#include "common.h"
 #include "err.h"
 
 #define ERR	1
@@ -22,7 +21,7 @@ _err(int exitcode, int flags, const char *fmt, va_list ap)
 }
 
 void
-errx(int exitcode, const char *fmt)
+errx(int exitcode, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -30,7 +29,7 @@ errx(int exitcode, const char *fmt)
 }
 
 void
-err(int exitcode, const char *fmt)
+err(int exitcode, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -38,7 +37,7 @@ err(int exitcode, const char *fmt)
 }
 
 void
-warnx(const char *fmt)
+warnx(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -47,7 +46,7 @@ warnx(const char *fmt)
 }
 
 void
-warn(const char *fmt)
+warn(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

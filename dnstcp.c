@@ -1,14 +1,8 @@
 /* (c) 2006, Quest Software Inc. All rights reserved. */
 /* David Leonard, 2006 */
 
-#include <err.h>
-#include <stdio.h>
-#include <assert.h>
-#include <netdb.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/socket.h>
+#include "common.h"
+
 #include "err.h"
 #include "dns.h"
 #include "dnstcp.h"
@@ -23,7 +17,7 @@
 static int  tcp_connect(const char *host, const char *service);
 extern int vflag;
 
-#if !defined(HPUX)
+#if HAVE_GETADDRINFO
 /* Connects to a TCP service. Returns socket descriptor or -1 on failure. */
 static int
 tcp_connect(const char *host, const char *service)
@@ -62,9 +56,13 @@ tcp_connect(const char *host, const char *service)
 
     return s;
 }
-#else
 
-#include <netinet/in.h>
+#else /* ! HAVE_GETADDRINFO */
+
+# if HAVE_NETINET_IN_H
+#  include <netinet/in.h>
+# endif
+
 static int
 tcp_connect(const char *host, const char *service)
 {
@@ -97,7 +95,8 @@ tcp_connect(const char *host, const char *service)
     sin.sin_port = servent->s_port;	/* htons()?? */
     memcpy(&sin.sin_addr, hostent->h_addr, sizeof sin.sin_addr);
 
-    printf("port = %u\n", servent->s_port);
+    if (vflag > 2)
+	fprintf(stderr, "connecting to port %u\n", servent->s_port);
 
     if (connect(s, &sin, sizeof sin) < 0) {
 	warn("connect");
@@ -107,7 +106,8 @@ tcp_connect(const char *host, const char *service)
 
     return s;
 }
-#endif
+
+#endif /* ! HAVE_GETADDRINFO */
 
 /* 
  * Connects to a DNS server using TCP. 

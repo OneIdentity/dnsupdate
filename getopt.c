@@ -1,6 +1,13 @@
 /* (c) 2006, Quest Software, Inc. All rights reserved. */
 /* David Leonard, 2006 */
-#include <stdio.h>
+
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#if STDC_HEADERS
+# include <stdio.h>
+#endif
 
 /*
  * Simple getopt implementation, for platforms without it.

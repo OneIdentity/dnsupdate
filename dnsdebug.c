@@ -1,9 +1,7 @@
 /* (c) 2006, Quest Software Inc. All rights reserved */
 /* David Leonard, 2006 */
 
-#include <stdio.h>
-#include <time.h>
-#include <assert.h>
+#include "common.h"
 #include "dns.h"
 #include "dnsdebug.h"
 
@@ -270,6 +268,7 @@ dumpmsg(struct dns_msg *msg)
 	    dumpname(msg, "tsig.algorithm");
 	    timehi = dns_rd_uint16(msg);
 	    timelo = dns_rd_uint32(msg);
+	    /* Note: on 32-bit time_t systems, higher order bits are lost */
 	    t = timehi << 32 | timelo;
 	    printf("\t%-20s: 0x%x:%08x (%.24s)\n", "tsig.time",
 		    	timehi, timelo, ctime(&t));

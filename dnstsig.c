@@ -1,12 +1,8 @@
 /* (c) 2006, Quest Software, Inc. All rights reserved. */
 /* David Leonard, 2006 */
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <assert.h>
-#include <err.h>
+
+#include "common.h"
+#include "err.h"
 #include "dns.h"
 #include "dnstsig.h"
 
@@ -47,7 +43,7 @@ dns_tsig_wr(struct dns_msg *msg, const struct dns_tsig *tsig)
 {
     uint16_t mark;
     dns_wr_begin(msg, &mark);
-    dns_wr_name(msg, tsig->algorithm);
+    dns_wr_name_canon(msg, tsig->algorithm);
     dns_tsig_wr_time(msg, &tsig->time);
     dns_wr_uint16(msg, tsig->fudge);
     dns_wr_data(msg, tsig->mac, tsig->maclen);
@@ -62,7 +58,7 @@ void
 dns_tsig_rd(struct dns_msg *msg, struct dns_tsig *tsig)
 {
     dns_rd_begin(msg);
-    dns_rd_name(msg, tsig->algorithm, sizeof tsig->algorithm);
+    dns_rd_name_canon(msg, tsig->algorithm, sizeof tsig->algorithm);
     dns_tsig_rd_time(msg, &tsig->time);
     tsig->fudge = dns_rd_uint16(msg);
     tsig->maclen = dns_rd_datap(msg, &tsig->mac);

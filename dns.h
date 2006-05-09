@@ -113,6 +113,8 @@ void   dns_rd_header(struct dns_msg *msg, struct dns_header *header);
 void   dns_rd_skip(struct dns_msg *msg, uint16_t len);
 /* Reads a domain name from the buffer and stores as a dot-delimited string */
 void   dns_rd_name(struct dns_msg *msg, char *buf, size_t bufsz);
+/* Reads a canonical-only domain name from the buffer and stores */
+void   dns_rd_name_canon(struct dns_msg *msg, char *buf, size_t bufsz);
 /* Reads binary data into the buffer */
 void   dns_rd_data_raw(struct dns_msg *msg, void *buf, uint16_t len);
 /* Reads a uint16_t followed by binary data into a buffer */

@@ -1,6 +1,7 @@
 /* (c) 2006 Quest Software, Inc. All rights reserved. */
 /* David Leonard, 2006 */
-#include <stddef.h>
+
+#include "common.h"
 #include "dns.h"
 #include "dnstkey.h"
 

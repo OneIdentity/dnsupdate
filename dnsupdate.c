@@ -1,10 +1,11 @@
-#include <err.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+/* (c) 2006, Quest Software, Inc. All rights reserved. */
+
+#include "common.h"
+
 #include <vas.h>
 #include <vas_gss.h>
+
+#include "err.h"
 #include "dns.h"
 #include "dnsdebug.h"
 #include "dnstcp.h"
@@ -464,9 +465,6 @@ main(int argc, char **argv)
     unsigned int ttl = 60*60;
     int ch;
     int opterror = 0;
-
-    /* XXX This is needed  */
-    dns_never_compress = 1;
 
     while ((ch = getopt(argc, argv, "d:h:s:t:v")) != -1)
 	switch (ch) {
