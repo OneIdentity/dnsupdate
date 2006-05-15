@@ -13,14 +13,37 @@
 #include "dnstsig.h"
 
 /*
- * Testing the dynamic DNS update protocol
+ * Dnyamic update of a VAS host's A entry in Active Directory DNS using
+ * GSS TSIG for authentication.
+ *
+ * Useful for when DHCP is not provided by Active Directory, or the
+ * host's DHCP client does not send option 81.
+ *
+ * This is the equivalent to Window's "ipconfig /registerdns" command.
+ *
+ * References:
+ *  RFC 1034 Domain Names - Concepts and Facilities, 1987
+ *  RFC 1035 Domain Names - Implementation and Specification, 1987
+ *  RFC 1750 Randomness recommendations for security, 1994
+ *  RFC 1995 Incremental Zone Transfer in DNS, 1996
+ *  RFC 2136 Dynamic updates in the DNS (DNS UPDATE), 1997
+ *  RFC 2535 DNS Security Extensions, 1999
+ *  RFC 2845 Secret key transaction authentication for DNS (TSIG), 2000
+ *  RFC 2930 Secret key establishment for DNS (TKEY), 2000
+ *  RFC 3645 GSS algorithm for TSIG for DNS (GSS-TSIG), 2003
+ *
+ * See also:
+ *  http://tools.ietf.org/wg/dhc/draft-ietf-dhc-fqdn-option
+ *  http://technet2.microsoft.com/windowsserver/en/technologies/featured/dns/default.mspx
  */
 
+/* TSIG algorithm names */
 #define GSS_MICROSOFT_COM	"gss.microsoft.com"
 #define GSS_TSIG		"gss-tsig"
 
 static uint16_t next_id = 1;
 int vflag;
+const char *tsig_name = GSS_MICROSOFT_COM;
 
 /* Returns a unique message ID for this session */
 static uint16_t
@@ -198,7 +221,7 @@ update(int s, struct verify_context *vctx,
     dns_wr_data(msg, udata, udatalen);
 
     if (vctx)
-	dns_tsig_sign(msg, vctx->key_name, GSS_MICROSOFT_COM, 36000, NULL, 0,
+	dns_tsig_sign(msg, vctx->key_name, tsig_name, 36000, NULL, 0,
 		sign, vctx);
     dns_wr_finish(msg);
 
@@ -323,7 +346,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    rr.ttl = 0;
 	    memset(&tkey, 0, sizeof tkey);
 	    snprintf(tkey.algorithm, sizeof tkey.algorithm, "%s",
-		    GSS_MICROSOFT_COM);
+		    tsig_name);
 	    tkey.inception = time(0);
 	    tkey.expiration = tkey.inception + 2*60*60;
 	    tkey.mode = DNS_TKEY_MODE_GSSAPI;
@@ -397,7 +420,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    assert(rr.class_ == DNS_CLASS_IN || 
 		   rr.class_ == DNS_CLASS_ANY);
 	    dns_tkey_rd(msg, &tkey);
-	    assert(name_eq(tkey.algorithm, GSS_MICROSOFT_COM));
+	    assert(name_eq(tkey.algorithm, tsig_name));
 	    assert(tkey.expiration > time(0));
 	    assert(tkey.mode == DNS_TKEY_MODE_GSSAPI);
 	    assert(tkey.error == DNS_NOERROR);
@@ -466,13 +489,16 @@ main(int argc, char **argv)
     int ch;
     int opterror = 0;
 
-    while ((ch = getopt(argc, argv, "d:h:s:t:v")) != -1)
+    while ((ch = getopt(argc, argv, "d:h:Is:t:v")) != -1)
 	switch (ch) {
 	case 'd':
 	    domain = strdup(optarg);
 	    break;
 	case 'h':
 	    fqdn = optarg;
+	    break;
+	case 'I':
+	    tsig_name = GSS_TSIG;
 	    break;
 	case 's':
 	    nameserver = optarg;
@@ -502,6 +528,7 @@ main(int argc, char **argv)
 	fprintf(stderr, "usage: %s"
 			" [-d domain]"
 			" [-h hostname]"
+			" [-I]"
 			" [-s nameserver]"
 		        " [-t ttl]"
 	       		" [-v]"
