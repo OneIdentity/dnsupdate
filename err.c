@@ -18,6 +18,8 @@ _err(int exitcode, int flags, const char *fmt, va_list ap)
     if ((flags & X) == 0)
 	fprintf(stderr, ": %s", strerror(errno));
     fprintf(stderr, "\n");
+    if (flags & ERR)
+	exit(exitcode);
 }
 
 void
