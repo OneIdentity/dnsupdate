@@ -98,7 +98,7 @@ tcp_connect(const char *host, const char *service)
     if (vflag > 2)
 	fprintf(stderr, "connecting to port %u\n", servent->s_port);
 
-    if (connect(s, &sin, sizeof sin) < 0) {
+    if (connect(s, (struct sockaddr *)&sin, sizeof sin) < 0) {
 	warn("connect");
 	close(s);
 	return -1;
