@@ -113,7 +113,26 @@ verify(const void *buf, size_t buflen, const char *key_name,
     tokbuf.length = tsig->maclen;
     major = gss_verify_mic(&minor, ctx->gssctx, &msgbuf, &tokbuf, &qop);
     if (GSS_ERROR(major)) {
-	fprintf(stderr, "gss_verify_mic: failed! major=0x%x\n", major);
+	OM_uint32 eminor, emajor, ectx;
+	gss_buffer_desc ebuf;
+	fprintf(stderr, "gss_verify_mic: failed");
+	ectx = 0;
+	do {
+	    emajor = gss_display_status(&eminor, major, GSS_C_GSS_CODE,
+		    GSS_C_NO_OID, &ectx, &ebuf);
+	    if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
+	    fprintf(stderr, "\n  %.*s", ebuf.length, ebuf.value);
+	    (void)gss_release_buffer(&eminor, &ebuf);
+	} while (ectx);
+	do {
+	    emajor = gss_display_status(&eminor, minor, GSS_C_MECH_CODE,
+		    GSS_C_NO_OID, &ectx, &ebuf);
+	    if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
+	    fprintf(stderr, "\n    %.*s", ebuf.length, ebuf.value);
+	    (void)gss_release_buffer(&eminor, &ebuf);
+	} while (ectx);
+	fprintf(stderr, "\n");
+
 	if (vflag) {
 	    fprintf(stderr, "mac used was:\n");
 	    dumphex(tokbuf.value, tokbuf.length);
@@ -263,7 +282,15 @@ update(int s, struct verify_context *vctx,
 	goto fail;
     }
 
-    /* TODO: verify the packet TSIG */
+#if 0					/* XXX always GSS_S_BAD_MIC? */
+    /* Verify response */
+    if (vctx) {
+	dns_msg_setbuf(msg, buffer, len);
+	dns_tsig_verify(msg, verify, vctx);
+	if (vflag)
+	    fprintf(stderr, "server response verified\n");
+    } 
+#endif
 
     dns_msg_free(msg);
     return 1;
