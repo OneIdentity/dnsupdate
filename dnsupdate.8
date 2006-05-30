@@ -1,7 +1,7 @@
 .\" (c) 2006, Quest Software, Inc. All rights reserved.
 .TH DNSUPDATE 8
 .SH NAME
-dnsupdate \- authenticated DNS update for Active Directory hosts
+dnsupdate \- update an DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
 .RI [\-d\  domain ]
@@ -13,8 +13,12 @@ dnsupdate \- authenticated DNS update for Active Directory hosts
 .SH DESCRIPTION
 The
 .B dnsupdate
-tool updates the IP address of an Active Directory DNS entry.
-It should be run when the primary interface's IP address is configured
+utility authenticates to an Active Directory DNS server
+as a computer object, and updates its IP address.
+.PP
+The
+.B dnsupdate
+utility should be run whenever the primary interface's IP address is configured
 (e.g. from a DHCP hook).
 .SS OPTIONS
 .TP
@@ -40,5 +44,8 @@ increases the level of verbosity
 The
 .B dnsupdate
 tool exits with status 0 only if the update operation was successful.
+.SH "SEE ALSO"
+vastool(1),
+.I http://rc.vintela.com/topics/ddns/
 .SH AUTHORS
 David Leonard, Quest Software, Inc.
