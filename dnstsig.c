@@ -92,6 +92,7 @@ dns_tsig_wr_variables(struct dns_msg *varmsg, struct dns_rr *rr,
  * decrements the arcount, and calls the verifyfn
  * expecting it to return 1 for success. On success, removes the
  * TKEY record from the end, and rewinds the msg for reading.
+ * Verification errors are fatal.
  */
 void
 dns_tsig_verify(struct dns_msg *msg, 
