@@ -608,9 +608,9 @@ main(int argc, char **argv)
 	if (error)
 	    errx(1, "vas_computer_get_dns_hostname: %s",
 		    vas_err_get_string(vas_ctx, 1));
-	if (vflag)
-	    fprintf(stderr, "hostname: %s\n", fqdn);
     }
+    if (vflag)
+	fprintf(stderr, "hostname: %s\n", fqdn);
 
     if (!domain) {
 	error = vas_info_joined_domain(vas_ctx, &domain, NULL);
