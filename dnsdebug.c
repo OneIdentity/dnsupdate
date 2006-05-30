@@ -90,26 +90,26 @@ dumphex(const void *buf, size_t len)
     size_t i, j;
 
     for (i = 0; i < len; i += 16) {
-	printf(" %04x:", (int)i);
+	fprintf(stderr, " %04x:", (int)i);
 	for (j = i; j < i + 16; j++) {
 	    if (j < len)
-		printf(" %02x", data[j]);
+		fprintf(stderr, " %02x", data[j]);
 	    else
-		printf("   ");
+		fprintf(stderr, "   ");
 	    if (j == i + 7)
-		putchar(' ');
+		putc(' ', stderr);
 	}
 
-	printf("   ");
+	fprintf(stderr, "   ");
 	for (j = i; j < i + 16 && j < len; j++) {
 	    if (data[j] < ' ' || data[j] >= 0x7f)
-		putchar('.');
+		putc('.', stderr);
 	    else
-		putchar(data[j]);
+		putc(data[j], stderr);
 	    if (j == i + 7)
-		putchar(' ');
+		putc(' ', stderr);
 	}
-	putchar('\n');
+	putc('\n', stderr);
     }
 
 }
@@ -121,7 +121,7 @@ dumpdata(struct dns_msg *msg, const char *name, uint16_t len)
    
     p = (unsigned char *)msg->data + dns_msg_getpos(msg);
     dns_rd_skip(msg, len);
-    printf("\t%-20s: (len=%d)\n", name, len);
+    fprintf(stderr, "\t%-20s: (len=%d)\n", name, len);
     dumphex(p, len);
 }
 
@@ -130,7 +130,7 @@ dumpname(struct dns_msg *msg, const char *name)
 {
     char buf[256];
     dns_rd_name(msg, buf, sizeof buf);
-    printf("\t%-20s: %s\n", name, buf);
+    fprintf(stderr, "\t%-20s: %s\n", name, buf);
 }
 
 static void
@@ -138,7 +138,7 @@ dumpuint16(struct dns_msg *msg, const char *name)
 {
     uint16_t v;
     v = dns_rd_uint16(msg);
-    printf("\t%-20s: %u (0x%x)\n", name, v, v);
+    fprintf(stderr, "\t%-20s: %u (0x%x)\n", name, v, v);
 }
 
 static void
@@ -146,7 +146,7 @@ dumpuint16desc(struct dns_msg *msg, const char *name, struct desc *desc)
 {
     uint16_t v;
     v = dns_rd_uint16(msg);
-    printf("\t%-20s: %s (%u)\n", name, desc_lookup(desc, v), v);
+    fprintf(stderr, "\t%-20s: %s (%u)\n", name, desc_lookup(desc, v), v);
 }
 
 static void
@@ -154,7 +154,7 @@ dumpuint16rcode(struct dns_msg *msg, const char *name)
 {
     uint16_t v;
     v = dns_rd_uint16(msg);
-    printf("\t%-20s: %s\n", name, dns_rcode_name(v));
+    fprintf(stderr, "\t%-20s: %s\n", name, dns_rcode_name(v));
 }
 
 static void
@@ -162,7 +162,7 @@ dumpuint32(struct dns_msg *msg, const char *name)
 {
     uint32_t v;
     v = dns_rd_uint32(msg);
-    printf("\t%-20s: %u (0x%x)\n", name, v, v);
+    fprintf(stderr, "\t%-20s: %u (0x%x)\n", name, v, v);
 }
 
 static void
@@ -172,38 +172,38 @@ dumpuint32time(struct dns_msg *msg, const char *name)
     time_t t;
     v = dns_rd_uint32(msg);
     t = (time_t)v;
-    printf("\t%-20s: %.24s (0x%x)\n", name, ctime(&t), v);
+    fprintf(stderr, "\t%-20s: %.24s (0x%x)\n", name, ctime(&t), v);
 }
 
 static void
 dumpheader(const struct dns_header *hdr)
 {
-    printf("    header:\n");
-    printf("\t%-20s: 0x%04x\n", "id", hdr->id);
-    printf("\t%-20s: %s\n", "response", hdr->response ? "RESPONSE" : "QUERY");
-    printf("\t%-20s: %s\n", "opcode", desc_lookup(opcode_desc, hdr->opcode));
-    printf("\t%-20s: %s\n", "authoritative", hdr->authoritative ? "yes" : "no");
-    printf("\t%-20s: %s\n", "truncated", hdr->truncated ? "yes" : "no");
-    printf("\t%-20s: %s\n", "recurse-desired", 
+    fprintf(stderr, "    header:\n");
+    fprintf(stderr, "\t%-20s: 0x%04x\n", "id", hdr->id);
+    fprintf(stderr, "\t%-20s: %s\n", "response", hdr->response ? "RESPONSE" : "QUERY");
+    fprintf(stderr, "\t%-20s: %s\n", "opcode", desc_lookup(opcode_desc, hdr->opcode));
+    fprintf(stderr, "\t%-20s: %s\n", "authoritative", hdr->authoritative ? "yes" : "no");
+    fprintf(stderr, "\t%-20s: %s\n", "truncated", hdr->truncated ? "yes" : "no");
+    fprintf(stderr, "\t%-20s: %s\n", "recurse-desired", 
 	    hdr->recurse_desired ? "yes" : "no");
-    printf("\t%-20s: %s\n", "recurse-avail", hdr->recurse_avail ? "yes" : "no");
-    printf("\t%-20s: %s (%u)\n", "rcode", 
+    fprintf(stderr, "\t%-20s: %s\n", "recurse-avail", hdr->recurse_avail ? "yes" : "no");
+    fprintf(stderr, "\t%-20s: %s (%u)\n", "rcode", 
 	    dns_rcode_name(hdr->rcode), hdr->rcode);
-    printf("\t%-20s: %u\n", "qdcount", hdr->qdcount);
-    printf("\t%-20s: %u\n", "ancount", hdr->ancount);
-    printf("\t%-20s: %u\n", "nscount", hdr->nscount);
-    printf("\t%-20s: %u\n", "arcount", hdr->arcount);
+    fprintf(stderr, "\t%-20s: %u\n", "qdcount", hdr->qdcount);
+    fprintf(stderr, "\t%-20s: %u\n", "ancount", hdr->ancount);
+    fprintf(stderr, "\t%-20s: %u\n", "nscount", hdr->nscount);
+    fprintf(stderr, "\t%-20s: %u\n", "arcount", hdr->arcount);
 }
 
 
 static void
 dumprr_part(const struct dns_rr *rr)
 {
-    printf("\t%-20s: \"%s\"\n", "name", rr->name);
-    printf("\t%-20s: %s (%u)\n", "type", 
+    fprintf(stderr, "\t%-20s: \"%s\"\n", "name", rr->name);
+    fprintf(stderr, "\t%-20s: %s (%u)\n", "type", 
 	    desc_lookup(rrtype_desc, rr->type), rr->type);
 
-    printf("\t%-20s: %s (%u)\n", "class", 
+    fprintf(stderr, "\t%-20s: %s (%u)\n", "class", 
 	    desc_lookup(rrclass_desc, rr->class_), rr->class_);
 
 }
@@ -211,15 +211,15 @@ dumprr_part(const struct dns_rr *rr)
 void
 dumprr(const struct dns_rr *rr, const char *name)
 {
-    printf("    %s:\n", name);
+    fprintf(stderr, "    %s:\n", name);
     dumprr_part(rr);
-    printf("\t%-20s: %ld sec\n", "ttl", (long)rr->ttl);
+    fprintf(stderr, "\t%-20s: %ld sec\n", "ttl", (long)rr->ttl);
 }
 
 static void
 dumpquestion(const struct dns_rr *question)
 {
-    printf("    question:\n");
+    fprintf(stderr, "    question:\n");
     dumprr_part(question);
 }
 
@@ -237,7 +237,7 @@ dumpmsg(struct dns_msg *msg)
     void *bufsave;
     size_t bufszsave;
 
-    printf("-------\n");
+    fprintf(stderr, "-------\n");
 
     assert(dns_msg_getpos(msg) == 0);
     dns_msg_getbuf(msg, &bufsave, &bufszsave);
@@ -270,7 +270,7 @@ dumpmsg(struct dns_msg *msg)
 	    timelo = dns_rd_uint32(msg);
 	    /* Note: on 32-bit time_t systems, higher order bits are lost */
 	    t = timehi << 32 | timelo;
-	    printf("\t%-20s: 0x%x:%08x (%.24s)\n", "tsig.time",
+	    fprintf(stderr, "\t%-20s: 0x%x:%08x (%.24s)\n", "tsig.time",
 		    	timehi, timelo, ctime(&t));
 	    dumpuint16(msg, "tsig.fudge");
 	    dumpdata(msg, "tsig.mac", dns_rd_uint16(msg));
