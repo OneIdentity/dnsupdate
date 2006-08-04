@@ -1,0 +1,365 @@
+#!/bin/sh
+# Script to install the required DHCP hook for various known platforms.
+# Copyright 2006 Quest Software, see the COPYING file for licencing
+# Authors: Ted Percival <ted.percival@quest.com>
+#
+# (c) 2006 Quest Software, Inc.  All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of Quest Software, Inc. nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# The *_vars functions set variables used on the particular platform.
+# The *_script functions echo the script used on the particular platform, so
+# you probably want to redirect the output somewhere.
+set -e
+
+# Make sure we're using a shell that doesn't suck on solaris
+# Specifically, one that understands '!' as a return status inversion
+if [ `uname -s` = 'SunOS' ] && [ "z$SANE_SHELL" = "z" ]; then
+	SANE_SHELL=1
+	export SANE_SHELL
+	exec /bin/bash $0 $@
+fi
+
+usage () {
+	echo "usage: $0 -i|-r [-q] <platform>"
+	echo " -i    install hook"
+	echo " -r    remove hook"
+	echo " -q    quiet: Only output error messages"
+	echo " <platform>    Style of script to install. Must be one of:"
+	echo "               linux, aix, hpux, or solaris"
+	echo "               ('linux' tries to detect dhclient or dhcpcd)"
+	echo
+	echo " Note that running the installation twice will cause the hook to be"
+	echo " called twice, probably not what you want. It must be removed as many"
+	echo " times as it was installed for it to be totally removed."
+}
+
+TMPSUFFIX='.quest-dhclient.tmp'
+
+OPERATION_MCGUYVER=\?
+QUIET=no
+while getopts irq f; do
+	case $f in
+		i | r)
+			OPERATION_MCGUYVER=$f;;
+		q)
+			QUIET=yes;;
+		\?)
+			usage >&2; exit 1;;
+	esac
+done
+
+if [ "$OPERATION_MCGUYVER" = \? ]; then
+	usage >&2
+	exit 1
+fi
+
+shift `expr $OPTIND - 1`
+
+if [ $# -ne 1 ]; then
+	usage >&2
+	exit 1
+fi
+
+PLATFORM=$1
+
+cleanup () {
+	if ! [ -z "$TMPFILE" ] && [ -f "$TMPFILE" ]; then
+		rm -f "$TMPFILE"
+	fi
+}
+
+trap cleanup 0 1 2
+
+
+# This function intends to act exactly as 'head --lines=-<number>' does on
+# systems with that feature. It prints all but the last <lines> lines of <file>
+# Syntax is 'head_minus_lines <lines> <file>' where lines is the number of lines
+# to skip and <file> is the file to be processed. No other options are supported
+head_minus_lines () {
+	if [ $# -ne 2 ] || [ ! -f $2 ]; then
+		echo 'Bad argument to head_minus_lines()' >&2
+		return 1
+	fi
+
+	local lines
+	lines=`wc -l $2 | awk '{ print $1 }'`
+	lines=`expr $lines - $1`
+	head -n $lines $2
+}
+
+# Determine what kind of dhcp client program is being used
+# Mostly useful for Linux distros
+# Ladies and gentlemen, standards and consistency are a _good_ thing.
+# Possible returns are: dhclient dhcpcd_new dhcpcd_old
+what_dhc () {
+	if [ -x /sbin/dhclient ]; then
+		echo dhclient
+		return 0
+	fi
+	if [ -x /sbin/dhcpcd ]; then
+		if [ -d /etc/sysconfig/network/if-up.d ]; then
+			echo dhcpcd_new
+			return 0;
+		fi
+		echo dhcpcd_old
+		return 0
+	fi
+	echo "Unable to determine type of DHCP client" >&2
+	return 1
+}
+
+aix_vars () {
+	REALFILE=/etc/dhcpcd.ini
+	TMPFILE=/etc/dhcpcd.ini$TMPSUFFIX
+}
+
+aix_inst () {
+	aix_vars
+	sed -e 's/^\(updateDNS.*\)/##vas3-dnsupdate##\1\nupdateDNS "\/opt\/quest\/sbin\/dnsupdate '\''%.0s%.0s%s%.0s'\''"/' < $REALFILE > $TMPFILE
+	cp $TMPFILE $REALFILE
+	[ "$QUIET" = 'yes' ] || echo "Installed dnsupdate hook into $REALFILE" >&2
+}
+
+aix_rm () {
+	aix_vars
+	sed -e 's/^##vas3-dnsupdate##//' < $REALFILE | grep -v '^updateDNS "/opt/quest/sbin/dnsupdate' $TMPFILE
+	cp $TMPFILE $REALFILE
+	[ "$QUIET" = 'yes' ] || echo "Removed dnsupdate hook from $REALFILE" >&2
+}
+
+
+solaris_script () {
+	cat <<'.'
+# usage: eventhook <interface> <event>
+case "$2" in
+	BOUND|EXTEND)
+		/opt/quest/bin/dnsupdate `/sbin/dhcpinfo -i "$1" Yiaddr`
+	;;
+esac
+.
+}
+
+solaris_vars () {
+	HOOKFILE=/etc/dhcp/eventhook
+	TMPFILE=${HOOKFILE}${TMPSUFFIX}
+}
+
+# Tries to install the output of $1_script (a string without a bang) into
+# $HOOKFILE, creating $HOOKFILE and the bang if it doesn't already exist.
+# Also uses $TMPFILE to store working data
+# The $1 arg should be a platform like 'suse' (to call suse_inst)
+try_inst () {
+	if test $# -ne 1 || test -z "$TMPFILE" || test -z "$HOOKFILE"; then
+		return 1 # Some idiot is driving this thing. Move over sweetheart!
+	fi
+
+	if [ -f $HOOKFILE ]; then
+		$1_script >> $HOOKFILE
+	else
+		echo '#!/bin/sh' > $TMPFILE
+		$1_script >> $TMPFILE
+		cp $TMPFILE $HOOKFILE
+	fi
+	chmod +x $HOOKFILE
+	[ "$QUIET" = "yes" ] || echo "Successfully installed hook into $HOOKFILE" >&2
+}
+
+# Tries to remove the output of $1_script from $HOOKFILE (removing $HOOKFILE
+# if it is empty).
+# Also uses $TMPFILE to store working data
+# Usage is like try_inst
+try_rm () {
+	if test $# -ne 1 || test -z "$TMPFILE" || test -z "$HOOKFILE"; then
+		return 1 # Some idiot is driving this thing. Move over sweetheart!
+	fi
+
+	test -f $HOOKFILE || return 0
+
+	$1_script > $TMPFILE
+
+	local linecount
+	linecount=`wc -l $TMPFILE | awk '{print $1}'`
+	if tail -$linecount $HOOKFILE | cmp $TMPFILE - > /dev/null; then
+		# Strip the dnsupdate bit from the end of the file
+		head_minus_lines $linecount $HOOKFILE > $TMPFILE
+		if [ `wc -l $TMPFILE | awk '{ print $1 }'` -eq 1 ]; then
+			# BANG BANG BANG! (Just the bang left in the script)
+			rm -f $HOOKFILE
+		else
+			cp $TMPFILE $HOOKFILE
+		fi
+		[ "$QUIET" = 'yes' ] || echo "Successfully removed the dnsupdate hook from $HOOKFILE" >&2
+	else
+		echo "Couldn't figure out how to remove the dnsupdate hook from $HOOKFILE" >&2
+		echo "You might like to try removing it yourself." >&2
+	fi
+}
+
+solaris_inst () {
+	solaris_vars
+	try_inst solaris
+}
+
+solaris_rm () {
+	solaris_vars
+	try_rm solaris
+}
+
+
+hpux_vars () {
+	HOOKFILE=/sbin/rc1.d/S321dnsupdate
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+hpux_script () {
+	cat <<'.'
+if test 0 -ne 0`/usr/sbin/ch_rc -l -p 'DHCP_ENABLE[0]'`
+then
+	addr=`/usr/sbin/ch_rc -l -p 'IP_ADDRESS[0]'`
+	case "$addr" in
+		*.*.*.*) /opt/quest/sbin/dnsupdate $addr;;
+	esac
+fi
+.
+}
+
+hpux_inst () {
+	hpux_vars
+	try_inst hpux
+}
+
+hpux_rm () {
+	hpux_vars
+	try_rm hpux
+}
+
+
+# dhclient hook based on dhclient-script(8) manpage
+# This function being called dhclient_script is accidental coincidence
+dhclient_script () {
+	# Hook is sourced (not executed)
+	# Return value is to be passed in exit_status var
+	cat <<'.'
+# This file is sourced by dhclient-script.
+# It doesn't matter if there is a bang (#!/bin/sh) above.
+case "$reason" in
+BOUND|RENEW|REBIND|REBOOT)
+	/opt/quest/sbin/dnsupdate "$new_ip_address"
+;;
+esac
+.
+}
+
+dhclient_vars () {
+	HOOKFILE=/etc/dhclient-exit-hooks
+	TMPFILE=/etc/dhclient-exit-hooks$TMPSUFFIX
+}
+
+
+# Based on dhcpcd(8) manpage
+dhcpcd_old_script () {
+	# TODO: The script is called with [ "$3" = '-d' ] for debug mode.
+	# dnsupdate should be called with '-v' if that's the case.
+	cat <<'.'
+. $1
+case $2 in
+	new)
+		/opt/quest/sbin/dnsupdate "$IPADDR"
+	;;
+esac
+.
+}
+
+dhcpcd_old_vars () {
+	if [ -d /etc/sysconfig/network/scripts ]; then
+		HOOKFILE=/etc/sysconfig/network/scripts/dhcpcd-hook
+	else
+		HOOKFILE=/etc/dhcpc/dhcpcd.exe
+	fi
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+dhc_something_inst () {
+	local dhc
+	dhc=`what_dhc`
+	${dhc}_vars
+	try_inst ${dhc}
+}
+
+dhc_something_rm () {
+	local dhc
+	dhc=`what_dhc`
+	${dhc}_vars
+	try_rm ${dhc}
+}
+
+dhcpcd_new_vars () {
+	HOOKFILE=/etc/sysconfig/network/if-up.d/quest-dnsupdate
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+dhcpcd_new_script () {
+	cat <<'.'
+test -f /etc/sysconfig/network/ifcfg-$1 &&
+. /etc/sysconfig/network/ifcfg-$1
+test x"$BOOTPROTO" = x"dhcp" || exit 0
+. /var/lib/dhcpcd/dhcpcd-$2.info || exit
+/opt/quest/sbin/dnsupdate "$IPADDR"
+.
+}
+
+
+ACTION=
+case $OPERATION_MCGUYVER in
+	i)
+		ACTION='inst';;
+	r)
+		ACTION='rm';;
+	*)
+		echo "Unrecognised operation '-$OPERATION_MCGUYVER'" >&2
+		exit 1;;
+esac
+
+case $PLATFORM in
+	redhat|linux|rpm|suse)
+		dhc_something_$ACTION;;
+	aix)
+		aix_$ACTION;;
+	hpux)
+		hpux_$ACTION;;
+	solaris)
+		solaris_$ACTION;;
+	*)
+		echo "Unrecognised platform '$PLATFORM'" >&2
+		exit 1;;
+esac
+
+exit 0
+
+# Bitter like a lemon.
+
+# vim: ts=4:sw=4:noet

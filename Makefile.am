@@ -7,6 +7,7 @@ VAS_LIBS=		`$(VASCONFIG) --libs vas`
 
 sbin_PROGRAMS = 	dnsupdate
 man_MANS = 		dnsupdate.8
+libexec_SCRIPTS =	dnsupdate-install-hooks
 
 dnsupdate_SOURCES=	dnsupdate.c dns.c dnstcp.c \
 			dnsdebug.c dnstkey.c dnstsig.c \
@@ -19,6 +20,7 @@ dnsupdate_LDFLAGS=	$(VAS_LIBS)
 dnsupdate.spec: dnsupdate.spec.in
 	sed -e 's,[@]VERSION[@],$(VERSION),g' < $(srcdir)/dnsupdate.spec.in > $@
 
-EXTRA_DIST=	dnsupdate.spec dnsupdate.spec.in $(man_MANS) err.h
+EXTRA_DIST=	dnsupdate.spec dnsupdate.spec.in $(man_MANS) err.h \
+		dnsupdate-install-hooks dnsupdate.pp
 
 
