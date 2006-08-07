@@ -27,12 +27,16 @@
  * peer to send back error packets, so this should be rethought]
  */
 
-/* Functions to call on error */
-static void (*error_handler)(const char *, void *);
-static void *error_handler_closure;
+/* Prototypes */
+static void check(struct dns_msg *msg, uint16_t len);
+static void rd_error(const char *msg);
 static void rd_name(struct dns_msg *msg, char *buf, size_t bufsz, 
 	int canon_only);
+static void wr_label(struct dns_msg *msg, int len, const char *name);
+static void wr_name(struct dns_msg *msg, const char *name, int compress);
 
+static void (*error_handler)(const char *, void *);
+static void *error_handler_closure;
 int dns_never_compress = 0;
 
 /* Creates a new message with a zero-sized buffer */

@@ -41,16 +41,29 @@
 #define GSS_MICROSOFT_COM	"gss.microsoft.com"
 #define GSS_TSIG		"gss-tsig"
 
-static uint16_t next_id = 1;
-int vflag;
-const char *tsig_name = GSS_MICROSOFT_COM;
+/* Prototypes */
+static uint16_t  unique_id(void);
+static int	 name_eq(const char *a, const char *b);
+static void	 make_key_name(const char *fqdn, char *buf, size_t bufsz);
+static void	 print_gss_error(const char *msg, struct verify_context *ctx,
+       			OM_uint32 major, OM_uint32 minor);
+static int	 verify(const void *buf, size_t buflen, const char *key_name,
+       			const struct dns_tsig *tsig, void *context);
+static void	*sign(struct dns_tsig *tsig, void *data, size_t datalen,
+       			void *context);
+static int	 update(int s, struct verify_context *vctx, const char *fqdn,
+       			uint16_t utype, uint16_t uclass, uint32_t uttl,
+		       	const void *udata, size_t udatalen);
+static int	 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s, 
+			const char *server, const char *fqdn, 
+			const char *domain, uint16_t utype, uint16_t uclass, 
+			uint32_t uttl, const void *udata, size_t udatalen);
+static int	 aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz);
 
-/* Returns a unique message ID for this session */
-static uint16_t
-unique_id()
-{
-    return next_id++;
-}
+
+static uint16_t next_id;			/* used by unique_id() */
+int vflag;					/* Verbose flag */
+const char *tsig_name = GSS_MICROSOFT_COM;	/* Signature standard */
 
 /* Initialises the unique ID stream */
 void
@@ -58,6 +71,13 @@ init_unique_id()
 {
     srandom(time(0) * getpid());
     next_id = random();
+}
+
+/* Returns a unique message ID for this session */
+static uint16_t
+unique_id()
+{
+    return next_id++;
 }
 
 /* Returns true if two DNS names are the same */
@@ -80,21 +100,45 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     assert(bufsz > 31);
     for (i = 0; i < 31; i++)
 	buf[i] = domainchars[random() % (sizeof domainchars - 1)];
-#if 1
-    buf[i] = 0;
-#else
-    /* Problem with compression somewhere? */
     snprintf(buf + 31, bufsz- 31, ".%s", fqdn);
-#endif
     if (vflag)
 	fprintf(stderr, "using TKEY %s\n", buf);
 }
 
+/* An authentication context structure for convenience */
 struct verify_context {
-    gss_ctx_id_t gssctx;
-    const char *key_name;
+    gss_ctx_id_t gssctx;	/* Our security context */
+    const char *key_name;	/* The shared name of the context */
 };
 
+/* Prints a GSS error message to standard error */
+static void
+print_gss_error(const char *msg, struct verify_context *ctx, 
+		OM_uint32 major, OM_uint32 minor)
+{
+    OM_uint32 eminor, emajor, ectx;
+    gss_buffer_desc ebuf;
+
+    fprintf(stderr, "gss_verify_mic: failed");
+    ectx = 0;
+    do {
+	emajor = gss_display_status(&eminor, major, GSS_C_GSS_CODE,
+		GSS_C_NO_OID, &ectx, &ebuf);
+	if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
+	fprintf(stderr, "\n  %.*s", ebuf.length, ebuf.value);
+	(void)gss_release_buffer(&eminor, &ebuf);
+    } while (ectx);
+    do {
+	emajor = gss_display_status(&eminor, minor, GSS_C_MECH_CODE,
+		GSS_C_NO_OID, &ectx, &ebuf);
+	if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
+	fprintf(stderr, "\n    %.*s", ebuf.length, ebuf.value);
+	(void)gss_release_buffer(&eminor, &ebuf);
+    } while (ectx);
+    fprintf(stderr, "\n");
+}
+
+/* Verifies a buffer using a TSIG-GSS MAC. Returns true if verified OK */
 static int
 verify(const void *buf, size_t buflen, const char *key_name, 
 	const struct dns_tsig *tsig, void *context)
@@ -111,28 +155,10 @@ verify(const void *buf, size_t buflen, const char *key_name,
     msgbuf.length = buflen;
     tokbuf.value = (void *)tsig->mac;
     tokbuf.length = tsig->maclen;
+
     major = gss_verify_mic(&minor, ctx->gssctx, &msgbuf, &tokbuf, &qop);
     if (GSS_ERROR(major)) {
-	OM_uint32 eminor, emajor, ectx;
-	gss_buffer_desc ebuf;
-	fprintf(stderr, "gss_verify_mic: failed");
-	ectx = 0;
-	do {
-	    emajor = gss_display_status(&eminor, major, GSS_C_GSS_CODE,
-		    GSS_C_NO_OID, &ectx, &ebuf);
-	    if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
-	    fprintf(stderr, "\n  %.*s", ebuf.length, ebuf.value);
-	    (void)gss_release_buffer(&eminor, &ebuf);
-	} while (ectx);
-	do {
-	    emajor = gss_display_status(&eminor, minor, GSS_C_MECH_CODE,
-		    GSS_C_NO_OID, &ectx, &ebuf);
-	    if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
-	    fprintf(stderr, "\n    %.*s", ebuf.length, ebuf.value);
-	    (void)gss_release_buffer(&eminor, &ebuf);
-	} while (ectx);
-	fprintf(stderr, "\n");
-
+	print_gss_error("gss_verify_mic: failed", ctx, major, minor);
 	if (vflag) {
 	    fprintf(stderr, "mac used was:\n");
 	    dumphex(tokbuf.value, tokbuf.length);
@@ -141,9 +167,11 @@ verify(const void *buf, size_t buflen, const char *key_name,
 	}
 	return 0;
     }
+
     return 1;
 }
 
+/* Signs a buffer using a TSIG-GSS record. Returns the MAC data */
 static void *
 sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 {
@@ -156,8 +184,11 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
     msgbuf.length = datalen;
 
     major = gss_get_mic(&minor, ctx->gssctx, 0, &msgbuf, &tokbuf);
-    if (GSS_ERROR(major))
-	errx(1, "gss_get_mic: failed! major=0x%x", major);
+    if (GSS_ERROR(major)) {
+	warn("vas_gss_spnego_initiate: %s", vas_err_get_string(ctx, 1));
+	print_gss_error("gss_get_mic: cannot sign", ctx, major, minor);
+	errx(1, "gss_get_mic");
+    }
 
     if (vflag)
 	fprintf(stderr, "sign: signed %u bytes of data -> %u byte mic\n",
@@ -200,33 +231,35 @@ update(int s, struct verify_context *vctx,
     header.id = unique_id();
     header.opcode = DNS_OP_UPDATE;
 
-    /* Zones/Questions */
+    /* Questions [=Zones affected] */
     header.qdcount++;
     memset(&zonerr, 0, sizeof zonerr);
     dns_rr_set_name(&zonerr, domain);
     zonerr.type = DNS_TYPE_SOA;
     zonerr.class_ = DNS_CLASS_IN;
 
-    /* Prerequisites/Answers */
+    /* Answers [=Prerequisites] */
     header.ancount++;
     memset(&prerr, 0, sizeof prerr);
     dns_rr_set_name(&prerr, domain);
     prerr.type = DNS_TYPE_ANY;
     prerr.class_ = DNS_CLASS_ANY;
 
-    /* Updates/Authoritatives */
+    /* Authoritatives [=Updates] */
     header.nscount++;
-    memset(&delrr, 0, sizeof delrr);
+    memset(&delrr, 0, sizeof delrr);		/* Delete existing classes */
     dns_rr_set_name(&delrr, fqdn);
     delrr.type = utype;
     delrr.class_ = DNS_CLASS_ANY;
 
-    header.nscount++;
-    memset(&addrr, 0, sizeof addrr);
-    dns_rr_set_name(&addrr, fqdn);
-    addrr.type = utype;
-    addrr.class_ = uclass;
-    addrr.ttl = uttl;
+    if (udata) {
+	header.nscount++;
+	memset(&addrr, 0, sizeof addrr);	/* Add specific class */
+	dns_rr_set_name(&addrr, fqdn);
+	addrr.type = utype;
+	addrr.class_ = uclass;
+	addrr.ttl = uttl;
+    }
 
     msg = dns_msg_new();
     dns_msg_setbuf(msg, buffer, sizeof buffer);
@@ -236,8 +269,10 @@ update(int s, struct verify_context *vctx,
     dns_wr_data(msg, NULL, 0);
     dns_wr_rr_head(msg, &delrr);
     dns_wr_data(msg, NULL, 0);
-    dns_wr_rr_head(msg, &addrr);
-    dns_wr_data(msg, udata, udatalen);
+    if (udata) {
+	dns_wr_rr_head(msg, &addrr);
+	dns_wr_data(msg, udata, udatalen);
+    }
 
     if (vctx)
 	dns_tsig_sign(msg, vctx->key_name, tsig_name, 36000, NULL, 0,
@@ -325,8 +360,12 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     make_key_name(fqdn, key_name, sizeof key_name);
 
     /* The domain server's principal name */
-    snprintf(server_principal, sizeof server_principal,
+    if (domain)
+       snprintf(server_principal, sizeof server_principal,
 	    "dns/%s@%s", server, domain);
+    else
+       snprintf(server_principal, sizeof server_principal,
+	    "dns/%s", server);
     if (vflag)
 	fprintf(stderr, "target service: %s\n", server_principal);
 
@@ -388,7 +427,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    dns_wr_finish(msg);
 
 	    if (vflag)
-		fprintf(stderr, "sending:\n");
+		fprintf(stderr, "sending tkey query\n");
 	    bufferlen = dnstcp_sendmsg(s, msg);
 	    if (bufferlen == -1)
 		goto fail;
@@ -401,7 +440,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    dns_msg_free(msg);
 	    (void)gss_release_buffer(&minor, &outtok);
 	} else {
-	    if (vflag)
+	    if (vflag > 1)
 		fprintf(stderr, "no output token needed after this round\n");
 	}
 
@@ -410,7 +449,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    struct dns_header recv_header;
 
 	    if (vflag)
-		fprintf(stderr, "waiting for reply\n");
+		fprintf(stderr, "waiting for tkey reply\n");
 	    bufferlen = dnstcp_recv(s, buffer, sizeof buffer);
 	    if (bufferlen <= 0)
 		goto fail;
@@ -473,7 +512,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	if (vflag)
 	    fprintf(stderr, "TSIG verified\n");
     } else
-	fprintf(stderr, "warning: final TSIG from server was not signed\n");
+	errx(1, "final TSIG from server was not signed");
 
     return update(s, &vctx, fqdn, utype, uclass, uttl, udata, udatalen);
 
@@ -481,10 +520,17 @@ fail:
     return 0;
 }
 
+/*
+ * Convert a string containing an IP address e.g "12.34.56.67" 
+ * into a unsigned char[4]. Returns true if the conversion
+ * completed successfully.
+ */
 static int
-aton(const char *s, unsigned char *ipaddr)
+aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz)
 {
     unsigned int octet[4];
+
+    assert(ipaddrsz == 4 * sizeof (unsigned char));
     if (sscanf(s, "%u.%u.%u.%u", octet, octet+1, octet+2, octet+3) != 4 ||
 	octet[0] > 255 || octet[1] > 255 ||
 	octet[2] > 255 || octet[3] > 255)
@@ -516,6 +562,7 @@ main(int argc, char **argv)
     int ch;
     int opterror = 0;
 
+    /* Argument processing */
     while ((ch = getopt(argc, argv, "d:h:Is:t:v")) != -1)
 	switch (ch) {
 	case 'd':
@@ -545,7 +592,7 @@ main(int argc, char **argv)
 	    break;
 	}
 
-    if (!(optind < argc && aton(argv[optind++], ipaddr)))
+    if (!(optind < argc && aton(argv[optind++], ipaddr, sizeof ipaddr)))
 	opterror = 1;
 
     if (optind != argc)
@@ -577,7 +624,7 @@ main(int argc, char **argv)
     { extern void vas_log_init(int,int,int,const char *,int);
       vas_log_init(4,5,5,NULL,0); }
 
-    /* Obtain a VAS context */
+    /* Initialise VAS */
     error = vas_ctx_alloc(&vas_ctx);
     if (error != VAS_ERR_SUCCESS)
     	errx(1, "vas_ctx_alloc");
@@ -597,6 +644,7 @@ main(int argc, char **argv)
 	errx(1, "vas_gss_initialize: %s", 
 		vas_err_get_string(vas_ctx, 1));
 
+    /* Determine the fully qualified domain name to use */
     if (!fqdn) {
 	error = vas_computer_init(vas_ctx, local_id, spn, 
 			VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
@@ -612,6 +660,7 @@ main(int argc, char **argv)
     if (vflag)
 	fprintf(stderr, "hostname: %s\n", fqdn);
 
+    /* Determine the realm/domain to use */
     if (!domain) {
 	error = vas_info_joined_domain(vas_ctx, &domain, NULL);
 	if (error)
@@ -621,19 +670,19 @@ main(int argc, char **argv)
     if (vflag)
 	fprintf(stderr, "domain: %s\n", domain);
 
+    /* Determine the list of possible nameservers to use */
     if (nameserver) {
 	user_servers[0] = nameserver;
 	user_servers[1] = NULL;
 	servers = user_servers;
     } else {
-	/* Connect to a server */
 	error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
 		&servers);
 	if (error)
 	    errx(1, "vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
     }
 
-    /* Contact each known server, until one works */
+    /* Try each nameserver, until one works */
     ret = 0;
     for (serverp = servers; *serverp; serverp++) {
 	if (vflag)
@@ -647,8 +696,9 @@ main(int argc, char **argv)
 		break;
 	}
     }
+    if (!ret)
+	warnx("could not connect to any nameservers");
 
-    free(domain);
     if (!nameserver)
 	vas_info_servers_free(vas_ctx, servers);
     vas_ctx_free(vas_ctx);

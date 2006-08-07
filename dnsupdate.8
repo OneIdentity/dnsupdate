@@ -1,14 +1,14 @@
 .\" (c) 2006, Quest Software, Inc. All rights reserved.
 .TH DNSUPDATE 8
 .SH NAME
-dnsupdate \- update an DNS entry in Active Directory
+dnsupdate \- updates a DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
+[\-Iv]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
 .RI [\-s\  nameserver ]
 .RI [\-t\  ttl ]
-[\-v]
 .I ip-addr
 .SH DESCRIPTION
 The
@@ -23,27 +23,38 @@ utility should be run whenever the primary interface's IP address is configured
 .SS OPTIONS
 .TP
 .RI \-d\  domain
-the Active Directory domain (realm) in which to authenticate,
-defaults to the currently joined domain
+specifies the Active Directory domain (realm) in which to authenticate.
+The default is to use the currently joined domain.
 .TP
 .RI \-h\  hostname
-the fully qualified hostname entry to update,
-defaults to the DNS hostname associated with the current AD computer object
+specifies the fully qualified hostname to use when updating the DNS entry.
+The default is to use the DNS hostname associated with the computer object
+corresponding to the system host principal.
+.TP
+\-I
+use the IETF's
+.I gss-tsig
+algorithm name (see RFC 3654).
+The default is to use
+.I gss.microsoft.com
+which is understood by Active Directory.
 .TP
 .RI \-s\  nameserver
-the nameserver to perform the dynamic DNS update operation on,
-defaults to the nearest domain controller with automatic fallback
+specifies the nameserver host to send the dynamic DNS update requests to.
+The default is to try all domain controllers, using the nearest first.
 .TP
 .RI \-t\  ttl
-the cache lifetime in seconds to store with the new DNS entry,
-defaults to one hour
+specifies the name's DNS cache lifetime, in seconds.
+If not provided, defaults to one hour.
+This value is not the same as the DHCP lease time.
+If specified as zero, the DNS entry will be deleted instead of updated.
 .TP
 \-v
 increases the level of verbosity
 .SS "EXIT STATUS"
 The
 .B dnsupdate
-tool exits with status 0 only if the update operation was successful.
+utility exits with status 0 if the update succeeded.
 .SH "SEE ALSO"
 vastool(1),
 .I http://rc.vintela.com/topics/ddns/
