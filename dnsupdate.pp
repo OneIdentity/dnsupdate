@@ -3,6 +3,7 @@
 
 %set
   name="quest-dnsupdate"
+  pp_solaris_name=quest-dnsupdat	# Argh!
   if test -x ./configure; then
     version=`./configure --version | head -n 1 | awk '{print $3}'`
   else
@@ -12,42 +13,28 @@
   summary="Updates DNS records for DHCP clients"
 
 %files
-  /opt/
-  /opt/quest/
-  /opt/quest/sbin/
   /opt/quest/sbin/dnsupdate
-  /opt/quest/man/
-  /opt/quest/man/man8/
   /opt/quest/man/man8/dnsupdate.8
-  /opt/quest/libexec/
   /opt/quest/libexec/dnsupdate-install-hooks
 
-%if [rpm]
-%post
+%post [rpm]
  /opt/quest/libexec/dnsupdate-install-hooks -i linux
-%preun
+%preun [rpm]
  /opt/quest/libexec/dnsupdate-install-hooks -r linux
-%endif
 
-%if [solaris]
-%post
+%post [solaris]
  /opt/quest/libexec/dnsupdate-install-hooks -i solaris
-%preun
+%preun [solaris]
  /opt/quest/libexec/dnsupdate-install-hooks -r solaris
-%endif
 
-%if [sd]
-%post
+%post [sd]
  /opt/quest/libexec/dnsupdate-install-hooks -i hpux
-%preun
+%preun [sd]
  /opt/quest/libexec/dnsupdate-install-hooks -r hpux
-%endif
 
-%if [aix]
-%post
+%post [aix]
  /opt/quest/libexec/dnsupdate-install-hooks -i aix
-%preun
+%preun [aix]
  /opt/quest/libexec/dnsupdate-install-hooks -r aix
-%endif
 
 # vim: ts=2:sw=2:et
