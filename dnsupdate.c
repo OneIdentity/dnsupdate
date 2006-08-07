@@ -41,6 +41,12 @@
 #define GSS_MICROSOFT_COM	"gss.microsoft.com"
 #define GSS_TSIG		"gss-tsig"
 
+/* An authentication context structure for convenience */
+struct verify_context {
+    gss_ctx_id_t gssctx;	/* Our security context */
+    const char *key_name;	/* The shared name of the context */
+};
+
 /* Prototypes */
 static uint16_t  unique_id(void);
 static int	 name_eq(const char *a, const char *b);
@@ -104,12 +110,6 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     if (vflag)
 	fprintf(stderr, "using TKEY %s\n", buf);
 }
-
-/* An authentication context structure for convenience */
-struct verify_context {
-    gss_ctx_id_t gssctx;	/* Our security context */
-    const char *key_name;	/* The shared name of the context */
-};
 
 /* Prints a GSS error message to standard error */
 static void
