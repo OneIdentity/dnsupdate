@@ -139,14 +139,15 @@ aix_vars () {
 
 aix_inst () {
 	aix_vars
-	sed -e 's/^\(updateDNS.*\)/##vas3-dnsupdate##\1\nupdateDNS "\/opt\/quest\/sbin\/dnsupdate '\''%.0s%.0s%s%.0s'\''"/' < $REALFILE > $TMPFILE
+	sed -e 's/^\(updateDNS.*\)/##quest-dnsupdate##\1/' < $REALFILE > $TMPFILE
+	echo 'updateDNS "/opt/quest/sbin/dnsupdate '\''%.0s%.0s%s%.0s'\''"' >> $TMPFILE
 	cp $TMPFILE $REALFILE
 	[ "$QUIET" = 'yes' ] || echo "Installed dnsupdate hook into $REALFILE" >&2
 }
 
 aix_rm () {
 	aix_vars
-	sed -e 's/^##vas3-dnsupdate##//' < $REALFILE | grep -v '^updateDNS "/opt/quest/sbin/dnsupdate' $TMPFILE
+	grep -v '^updateDNS "/opt/quest/sbin/dnsupdate' < $REALFILE | sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
 	cp $TMPFILE $REALFILE
 	[ "$QUIET" = 'yes' ] || echo "Removed dnsupdate hook from $REALFILE" >&2
 }
