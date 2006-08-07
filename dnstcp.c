@@ -69,7 +69,7 @@ tcp_connect(const char *host, const char *service)
     struct servent *servent;
     struct hostent *hostent;
     struct sockaddr_in sin;
-    int s, i;
+    int s;
 
     servent = getservbyname(service, "tcp");
     if (!servent) {

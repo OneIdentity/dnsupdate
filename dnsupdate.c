@@ -43,6 +43,7 @@
 
 /* An authentication context structure for convenience */
 struct verify_context {
+    vas_ctx_t *vasctx;	        /* VAS context */
     gss_ctx_id_t gssctx;	/* Our security context */
     const char *key_name;	/* The shared name of the context */
 };
@@ -125,14 +126,14 @@ print_gss_error(const char *msg, struct verify_context *ctx,
 	emajor = gss_display_status(&eminor, major, GSS_C_GSS_CODE,
 		GSS_C_NO_OID, &ectx, &ebuf);
 	if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
-	fprintf(stderr, "\n  %.*s", ebuf.length, ebuf.value);
+	fprintf(stderr, "\n  %.*s", ebuf.length, (char *)ebuf.value);
 	(void)gss_release_buffer(&eminor, &ebuf);
     } while (ectx);
     do {
 	emajor = gss_display_status(&eminor, minor, GSS_C_MECH_CODE,
 		GSS_C_NO_OID, &ectx, &ebuf);
 	if (GSS_ERROR(emajor)) errx(1, "gss_display_status: %d", emajor);
-	fprintf(stderr, "\n    %.*s", ebuf.length, ebuf.value);
+	fprintf(stderr, "\n    %.*s", ebuf.length, (char *)ebuf.value);
 	(void)gss_release_buffer(&eminor, &ebuf);
     } while (ectx);
     fprintf(stderr, "\n");
@@ -185,7 +186,8 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 
     major = gss_get_mic(&minor, ctx->gssctx, 0, &msgbuf, &tokbuf);
     if (GSS_ERROR(major)) {
-	warn("vas_gss_spnego_initiate: %s", vas_err_get_string(ctx, 1));
+	warn("vas_gss_spnego_initiate: %s", 
+                vas_err_get_string(ctx->vasctx, 1));
 	print_gss_error("gss_get_mic: cannot sign", ctx, major, minor);
 	errx(1, "gss_get_mic");
     }
@@ -500,6 +502,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     if (vflag)
 	fprintf(stderr, "gss context established\n");
 
+    vctx.vasctx = ctx;
     vctx.gssctx = gssctx;
     vctx.key_name = key_name;
 
