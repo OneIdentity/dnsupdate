@@ -71,6 +71,7 @@ static int	 my_inet_aton(const char *s, unsigned char *ipaddr,
 
 static uint16_t next_id;			/* used by unique_id() */
 int vflag;					/* Verbose flag */
+int Iflag;                                      /* IETF-compliance flag */
 const char *tsig_name = GSS_MICROSOFT_COM;	/* Signature standard */
 
 /* Initialises the unique ID stream */
@@ -108,8 +109,10 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     assert(bufsz > 31);
     for (i = 0; i < 31; i++)
 	buf[i] = domainchars[random() % (sizeof domainchars - 1)];
-    buf[i] = 0;
-    /* snprintf(buf + 31, bufsz- 31, ".%s", fqdn); */
+    if (Iflag)
+        snprintf(buf + 31, bufsz- 31, ".%s", fqdn);
+    else
+        buf[i] = 0;
     if (vflag)
 	fprintf(stderr, "using TKEY %s\n", buf);
 }
@@ -579,6 +582,7 @@ main(int argc, char **argv)
 	    break;
 	case 'I':
 	    tsig_name = GSS_TSIG;
+            Iflag = 1;
 	    break;
 	case 'N':
 	    Nflag = 1;
