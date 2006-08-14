@@ -65,7 +65,8 @@ static int	 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 			const char *server, const char *fqdn, 
 			const char *domain, uint16_t utype, uint16_t uclass, 
 			uint32_t uttl, const void *udata, size_t udatalen);
-static int	 aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz);
+static int	 my_inet_aton(const char *s, unsigned char *ipaddr, 
+                        size_t ipaddrsz);
 
 
 static uint16_t next_id;			/* used by unique_id() */
@@ -530,7 +531,7 @@ fail:
  * completed successfully.
  */
 static int
-aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz)
+my_inet_aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz)
 {
     unsigned int octet[4];
 
@@ -551,7 +552,7 @@ main(int argc, char **argv)
 {
     int s;
     char **servers, **serverp;
-    vas_ctx_t *vas_ctx;
+    vas_ctx_t *vas_ctx = NULL;
     vas_err_t error;
     char *domain = NULL;
     char *fqdn = NULL;
@@ -565,9 +566,10 @@ main(int argc, char **argv)
     unsigned int ttl = 60*60;
     int ch;
     int opterror = 0;
+    int Nflag = 0;
 
     /* Argument processing */
-    while ((ch = getopt(argc, argv, "d:h:Is:t:v")) != -1)
+    while ((ch = getopt(argc, argv, "d:h:INs:t:v")) != -1)
 	switch (ch) {
 	case 'd':
 	    domain = strdup(optarg);
@@ -577,6 +579,9 @@ main(int argc, char **argv)
 	    break;
 	case 'I':
 	    tsig_name = GSS_TSIG;
+	    break;
+	case 'N':
+	    Nflag = 1;
 	    break;
 	case 's':
 	    nameserver = optarg;
@@ -596,7 +601,7 @@ main(int argc, char **argv)
 	    break;
 	}
 
-    if (!(optind < argc && aton(argv[optind++], ipaddr, sizeof ipaddr)))
+    if (!(optind < argc && my_inet_aton(argv[optind++], ipaddr, sizeof ipaddr)))
 	opterror = 1;
 
     if (optind != argc)
@@ -607,6 +612,7 @@ main(int argc, char **argv)
 			" [-d domain]"
 			" [-h hostname]"
 			" [-I]"
+			" [-N]"
 			" [-s nameserver]"
 		        " [-t ttl]"
 	       		" [-v]"
@@ -615,6 +621,7 @@ main(int argc, char **argv)
     }
 
     if (vflag) {
+	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "spn: %s\n", spn);
 	fprintf(stderr, "ttl: %u\n", ttl);
 	fprintf(stderr, "ipaddr: %u.%u.%u.%u\n", 
@@ -624,62 +631,71 @@ main(int argc, char **argv)
     /* Initialise random number generator */
     init_unique_id();
 
-    /* Enable VAS debugging */
-    { extern void vas_log_init(int,int,int,const char *,int);
-      vas_log_init(4,5,5,NULL,0); }
+    if (!Nflag) {
 
-    /* Initialise VAS */
-    error = vas_ctx_alloc(&vas_ctx);
-    if (error != VAS_ERR_SUCCESS)
-    	errx(1, "vas_ctx_alloc");
+        /* Enable VAS debugging FIXME: this should not be necessary */
+        { extern void vas_log_init(int,int,int,const char *,int);
+          vas_log_init(4,5,5,NULL,0); }
 
-    error = vas_id_alloc(vas_ctx, spn, &local_id);
-    if (error)
-	errx(1, "vas_id_alloc: %s", vas_err_get_string(vas_ctx, 1));
+        /* Initialise VAS */
+        error = vas_ctx_alloc(&vas_ctx);
+        if (error != VAS_ERR_SUCCESS)
+            errx(1, "vas_ctx_alloc");
 
-    error = vas_id_establish_cred_keytab(vas_ctx, local_id,
-	    VAS_ID_FLAG_USE_MEMORY_CCACHE, NULL);
-    if (error)
-	errx(1, "vas_id_establish_cred_keytab: %s", 
-		vas_err_get_string(vas_ctx, 1));
+        error = vas_id_alloc(vas_ctx, spn, &local_id);
+        if (error)
+            errx(1, "vas_id_alloc: %s", vas_err_get_string(vas_ctx, 1));
 
-    error = vas_gss_initialize(vas_ctx, local_id);
-    if (error)
-	errx(1, "vas_gss_initialize: %s", 
-		vas_err_get_string(vas_ctx, 1));
+        error = vas_id_establish_cred_keytab(vas_ctx, local_id,
+                VAS_ID_FLAG_USE_MEMORY_CCACHE, NULL);
+        if (error)
+            errx(1, "vas_id_establish_cred_keytab: %s", 
+                    vas_err_get_string(vas_ctx, 1));
 
-    /* Determine the fully qualified domain name to use */
-    if (!fqdn) {
-	error = vas_computer_init(vas_ctx, local_id, spn, 
-			VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
-	if (error)
-	    errx(1, "vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
+        error = vas_gss_initialize(vas_ctx, local_id);
+        if (error)
+            errx(1, "vas_gss_initialize: %s", 
+                    vas_err_get_string(vas_ctx, 1));
 
-	error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
-		&fqdn);
-	if (error)
-	    errx(1, "vas_computer_get_dns_hostname: %s",
-		    vas_err_get_string(vas_ctx, 1));
+        /* Determine the fully qualified domain name to use */
+        if (!fqdn) {
+            error = vas_computer_init(vas_ctx, local_id, spn, 
+                            VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
+            if (error)
+                errx(1, "vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
+
+            error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
+                    &fqdn);
+            if (error)
+                errx(1, "vas_computer_get_dns_hostname: %s",
+                        vas_err_get_string(vas_ctx, 1));
+        }
+
+        /* Determine the realm/domain to use */
+        if (!domain) {
+            error = vas_info_joined_domain(vas_ctx, &domain, NULL);
+            if (error)
+                errx(1, "vas_info_joined_domain: %s", 
+                        vas_err_get_string(vas_ctx, 1));
+        }
     }
-    if (vflag)
+
+    if (!fqdn)
+        errx(1, "Cannot determine FQDN; specify with -h");
+
+    if (vflag) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
-
-    /* Determine the realm/domain to use */
-    if (!domain) {
-	error = vas_info_joined_domain(vas_ctx, &domain, NULL);
-	if (error)
-	    errx(1, "vas_info_joined_domain: %s", 
-		    vas_err_get_string(vas_ctx, 1));
-    }
-    if (vflag)
 	fprintf(stderr, "domain: %s\n", domain);
+    }
 
     /* Determine the list of possible nameservers to use */
     if (nameserver) {
 	user_servers[0] = nameserver;
 	user_servers[1] = NULL;
 	servers = user_servers;
-    } else {
+    } else if (!vas_ctx)
+        errx(1, "Cannot determine nameserver; specify with -s");
+    else {
 	error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
 		&servers);
 	if (error)
@@ -693,8 +709,13 @@ main(int argc, char **argv)
 	    fprintf(stderr, "trying %s...\n", *serverp);
 	s = dnstcp_connect(*serverp);
 	if (s != -1) {
-	    ret = gss_update(vas_ctx, local_id, s, *serverp, fqdn, domain,
-		    DNS_TYPE_A, DNS_CLASS_IN, ttl, ipaddr, sizeof ipaddr);
+            if (Nflag)
+                ret = update(s, NULL, fqdn, DNS_TYPE_A, DNS_CLASS_IN,
+                        ttl, ipaddr, sizeof ipaddr);
+            else
+                ret = gss_update(vas_ctx, local_id, s, *serverp, fqdn, 
+                        domain, DNS_TYPE_A, DNS_CLASS_IN, ttl, ipaddr, 
+                        sizeof ipaddr);
 	    dnstcp_close(&s);
 	    if (ret)
 		break;
@@ -703,9 +724,11 @@ main(int argc, char **argv)
     if (!ret)
 	warnx("could not connect to any nameservers");
 
-    if (!nameserver)
-	vas_info_servers_free(vas_ctx, servers);
-    vas_ctx_free(vas_ctx);
+    if (vas_ctx) {
+        if (!nameserver)
+            vas_info_servers_free(vas_ctx, servers);
+        vas_ctx_free(vas_ctx);
+    }
 
     exit(ret ? 0 : 1);
 }

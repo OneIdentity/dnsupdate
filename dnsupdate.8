@@ -4,7 +4,7 @@
 dnsupdate \- updates a DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
-[\-Iv]
+[\-INv]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
 .RI [\-s\  nameserver ]
@@ -38,6 +38,9 @@ algorithm name (see RFC 3654).
 The default is to use
 .I gss.microsoft.com
 which is understood by Active Directory.
+.TP
+\-N
+disable GSS authentication
 .TP
 .RI \-s\  nameserver
 specifies the nameserver host to send the dynamic DNS update requests to.
