@@ -35,14 +35,6 @@
 # you probably want to redirect the output somewhere.
 set -e
 
-# Make sure we're using a shell that doesn't suck on solaris
-# Specifically, one that understands '!' as a return status inversion
-if [ `uname -s` = 'SunOS' ] && [ "z$SANE_SHELL" = "z" ]; then
-	SANE_SHELL=1
-	export SANE_SHELL
-	exec /bin/bash $0 $@
-fi
-
 usage () {
 	echo "usage: $0 -i|-r [-q] <platform>"
 	echo " -i    install hook"
@@ -87,7 +79,7 @@ fi
 PLATFORM=$1
 
 cleanup () {
-	if ! [ -z "$TMPFILE" ] && [ -f "$TMPFILE" ]; then
+	if test x"$TMPFILE" != x""; then
 		rm -f "$TMPFILE"
 	fi
 }
@@ -100,12 +92,11 @@ trap cleanup 0 1 2
 # Syntax is 'head_minus_lines <lines> <file>' where lines is the number of lines
 # to skip and <file> is the file to be processed. No other options are supported
 head_minus_lines () {
-	if [ $# -ne 2 ] || [ ! -f $2 ]; then
+	if test $# -ne 2 -o ! -f $2; then
 		echo 'Bad argument to head_minus_lines()' >&2
 		return 1
 	fi
 
-	local lines
 	lines=`wc -l $2 | awk '{ print $1 }'`
 	lines=`expr $lines - $1`
 	head -n $lines $2
@@ -202,7 +193,6 @@ try_rm () {
 
 	$1_script > $TMPFILE
 
-	local linecount
 	linecount=`wc -l $TMPFILE | awk '{print $1}'`
 	if tail -$linecount $HOOKFILE | cmp $TMPFILE - > /dev/null; then
 		# Strip the dnsupdate bit from the end of the file
@@ -305,14 +295,12 @@ dhcpcd_old_vars () {
 }
 
 dhc_something_inst () {
-	local dhc
 	dhc=`what_dhc`
 	${dhc}_vars
 	try_inst ${dhc}
 }
 
 dhc_something_rm () {
-	local dhc
 	dhc=`what_dhc`
 	${dhc}_vars
 	try_rm ${dhc}
