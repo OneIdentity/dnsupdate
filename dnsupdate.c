@@ -107,7 +107,8 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     assert(bufsz > 31);
     for (i = 0; i < 31; i++)
 	buf[i] = domainchars[random() % (sizeof domainchars - 1)];
-    snprintf(buf + 31, bufsz- 31, ".%s", fqdn);
+    buf[i] = 0;
+    /* snprintf(buf + 31, bufsz- 31, ".%s", fqdn); */
     if (vflag)
 	fprintf(stderr, "using TKEY %s\n", buf);
 }
