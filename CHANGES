@@ -1,0 +1,10 @@
+[unreleased]
+    - added -N option (no-authenticate)
+    - bug 72: long TSIG identifier causes refused updates
+    - improve portability to Solaris 2.6
+1.2.0.30 [2006-08-07]
+    - add hook install script
+    - improve documentation, portability, error messages
+    - add -I option for strict RFC operation
+1.0.0.12 [2006-05-10]
+    - initial release
