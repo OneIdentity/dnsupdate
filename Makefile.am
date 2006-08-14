@@ -20,7 +20,12 @@ dnsupdate_LDFLAGS=	$(VAS_LIBS)
 dnsupdate.spec: dnsupdate.spec.in
 	sed -e 's,[@]VERSION[@],$(VERSION),g' < $(srcdir)/dnsupdate.spec.in > $@
 
-EXTRA_DIST=	dnsupdate.spec dnsupdate.spec.in $(man_MANS) err.h \
-		dnsupdate-install-hooks dnsupdate.pp
+EXTRA_DIST=	$(man_MANS) err.h \
+		dnsupdate-install-hooks dnsupdate.pp pp
 
-
+package: dnsupdate.pp pp
+	DESTDIR=`pwd`/destdir; \
+	rm -rf $$DESTDIR; mkdir -p $$DESTDIR; \
+	$(MAKE) install DESTDIR=$$DESTDIR; \
+	$(srcdir)/pp --destdir=$$DESTDIR $(srcdir)/dnsupdate.pp \
+	    version=$(VERSION)
