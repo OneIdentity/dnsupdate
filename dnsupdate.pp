@@ -3,13 +3,13 @@
 
 %set
   name="quest-dnsupdate"
-  pp_solaris_name=quest-dnsupdat	# Argh!
-  summary="Updates DNS records for DHCP clients"
+  pp_solaris_name=QSFTdnsup
+  summary="Updates dynamic DNS records for DHCP clients"
 
 %files
-  /opt/quest/sbin/dnsupdate
-  /opt/quest/man/man8/dnsupdate.8
-  /opt/quest/libexec/dnsupdate-install-hooks
+  $sbindir/dnsupdate
+  $man8dir/dnsupdate.8
+  $libexecdir/dnsupdate-install-hooks
 
 %set
 [rpm]     install_platform=linux
@@ -18,8 +18,8 @@
 [aix]     install_platform=aix
 
 %post [rpm,solaris,sd,aix]
- /opt/quest/libexec/dnsupdate-install-hooks -i %{install_platform}
+ %{libexecdir}/dnsupdate-install-hooks -i %{install_platform}
 %preun [rpm,solaris,sd,aix]
- /opt/quest/libexec/dnsupdate-install-hooks -r %{install_platform}
+ %{libexecdir}/dnsupdate-install-hooks -r %{install_platform}
 
 # vim: ts=2:sw=2:et

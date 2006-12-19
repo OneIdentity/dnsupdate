@@ -1,7 +1,7 @@
-[unreleased]
+1.2.1
     - added -N option (no-authenticate)
     - bug 72: long TSIG identifier causes refused updates
-    - improve portability to Solaris 2.6
+    - improve portability to Solaris 2.6, package name is now QSFTdnsup
 1.2.0.30 [2006-08-07]
     - add hook install script
     - improve documentation, portability, error messages
