@@ -637,10 +637,6 @@ main(int argc, char **argv)
 
     if (!Nflag) {
 
-        /* Enable VAS debugging FIXME: this should not be necessary */
-        { extern void vas_log_init(int,int,int,const char *,int);
-          vas_log_init(4,5,5,NULL,0); }
-
         /* Initialise VAS */
         error = vas_ctx_alloc(&vas_ctx);
         if (error != VAS_ERR_SUCCESS)
