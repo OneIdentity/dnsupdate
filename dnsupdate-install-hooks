@@ -149,7 +149,7 @@ solaris_script () {
 # usage: eventhook <interface> <event>
 case "$2" in
 	BOUND|EXTEND)
-		/opt/quest/bin/dnsupdate `/sbin/dhcpinfo -i "$1" Yiaddr`
+		/opt/quest/sbin/dnsupdate `/sbin/dhcpinfo -i "$1" Yiaddr`
 	;;
 esac
 .
