@@ -28,9 +28,10 @@ package: dnsupdate.pp pp
 	rm -rf $$DESTDIR; mkdir -p $$DESTDIR; \
 	$(MAKE) install DESTDIR=$$DESTDIR; \
 	$(srcdir)/pp \
-	    --destdir=$$DESTDIR $(srcdir)/dnsupdate.pp \
-	    --install-script=inst.sh \
-	    version=$(VERSION) \
-	    sbindir=$(sbindir) \
-	    libexecdir=$(libexecdir) \
-	    man8dir=$(man8dir)
+	       --destdir=$$DESTDIR \
+	       --install-script=inst.sh \
+	    $(srcdir)/dnsupdate.pp \
+	       version=$(VERSION) \
+	       sbindir=$(sbindir) \
+	       libexecdir=$(libexecdir) \
+	       man8dir=$(man8dir)
