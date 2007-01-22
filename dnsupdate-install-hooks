@@ -35,51 +35,70 @@
 # you probably want to redirect the output somewhere.
 set -e
 
+# print command line usage message
 usage () {
-	echo "usage: $0 -i|-r [-q] <platform>"
-	echo " -i    install hook"
-	echo " -r    remove hook"
-	echo " -q    quiet: Only output error messages"
-	echo " <platform>    Style of script to install. Must be one of:"
-	echo "               linux, aix, hpux, or solaris"
-	echo "               ('linux' tries to detect dhclient or dhcpcd)"
-	echo
-	echo " Note that running the installation twice will cause the hook to be"
-	echo " called twice, probably not what you want. It must be removed as many"
-	echo " times as it was installed for it to be totally removed."
+    cat <<-.
+	Usage: $0 [-irq] <platform>
+
+	Options:
+	 -i    Installs a DHCP client hook to run dnsupdate on address changes.
+	 -r    Remove the last installed hook.
+	 -q    Quiet. Suppress informational messages.
+
+	 <platform>    Style of script to install. Must be one of:
+	               linux, aix, hpux, or solaris
+	               ('linux' tries to detect dhclient or dhcpcd)
+
+	Warning: running this hook installation script more than once
+       	may insert multiple dnsupdate hooks, which is probably not
+	what you want.
+.
+}
+
+#-- Write a verbose, error message to stderr and set $ERROR to true
+error () {
+    echo "Error: $*" >&2
+    ERROR=true
+}
+
+#-- Write a verbose, informational message to stderr unless QUIET is true
+verbose () {
+    $QUIET || echo "$*" >&2
 }
 
 TMPSUFFIX='.quest-dhclient.tmp'
 
-OPERATION_MCGUYVER=\?
-QUIET=no
+QUIET=false
+ERROR=false
+ACTION=
 while getopts irq f; do
-	case $f in
-		i | r)
-			OPERATION_MCGUYVER=$f;;
-		q)
-			QUIET=yes;;
-		\?)
-			usage >&2; exit 1;;
+	case "$f" in
+		i) ACTION=inst;;
+		r) ACTION=rm;;
+		q) QUIET=true;;
+		*) error "unknown option $f";;
 	esac
 done
 
-if [ "$OPERATION_MCGUYVER" = \? ]; then
-	usage >&2
-	exit 1
+if [ -z "$ACTION" ]; then
+	error "One of -i or -r is required"
 fi
 
 shift `expr $OPTIND - 1`
 
 if [ $# -ne 1 ]; then
+	ERROR=true
+fi
+
+if $ERROR; then
 	usage >&2
 	exit 1
 fi
 
-PLATFORM=$1
+PLATFORM="$1"
 
 cleanup () {
-	if test x"$TMPFILE" != x""; then
+	if [ -n "$TMPFILE" ]; then
 		rm -f "$TMPFILE"
 	fi
 }
@@ -102,25 +121,23 @@ head_minus_lines () {
 	head -n $lines $2
 }
 
-# Determine what kind of dhcp client program is being used
+# Determine what kind of dhcp client program is being used, sets $dhc
 # Mostly useful for Linux distros
 # Ladies and gentlemen, standards and consistency are a _good_ thing.
-# Possible returns are: dhclient dhcpcd_new dhcpcd_old
-what_dhc () {
+# Possible values of $dhc are: dhclient dhcpcd_new dhcpcd_old unknown
+probe_dhc () {
 	if [ -x /sbin/dhclient ]; then
-		echo dhclient
-		return 0
-	fi
-	if [ -x /sbin/dhcpcd ]; then
+		dhc=dhclient
+	elif [ -x /sbin/dhcpcd ]; then
 		if [ -d /etc/sysconfig/network/if-up.d ]; then
-			echo dhcpcd_new
-			return 0;
+			dhc=dhcpcd_new
+		else
+			dhc=dhcpcd_old
 		fi
-		echo dhcpcd_old
-		return 0
+	else
+		error "Unable to determine DHCP client type"
+		exit 1
 	fi
-	echo "Unable to determine type of DHCP client" >&2
-	return 1
 }
 
 aix_vars () {
@@ -130,17 +147,20 @@ aix_vars () {
 
 aix_inst () {
 	aix_vars
-	sed -e 's/^\(updateDNS.*\)/##quest-dnsupdate##\1/' < $REALFILE > $TMPFILE
-	echo 'updateDNS "/opt/quest/sbin/dnsupdate '\''%.0s%.0s%s%.0s'\''"' >> $TMPFILE
+	sed -e '/^updateDNS/s/^/##quest-dnsupdate##/' \
+	    < $REALFILE > $TMPFILE
+	echo 'updateDNS "/opt/quest/sbin/dnsupdate '\''%.0s%.0s%s%.0s'\''"' \
+	    >> $TMPFILE
 	cp $TMPFILE $REALFILE
-	[ "$QUIET" = 'yes' ] || echo "Installed dnsupdate hook into $REALFILE" >&2
+	verbose "Installed dnsupdate hook into $REALFILE"
 }
 
 aix_rm () {
 	aix_vars
-	grep -v '^updateDNS "/opt/quest/sbin/dnsupdate' < $REALFILE | sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
+	grep -v '^updateDNS "/opt/quest/sbin/dnsupdate' < $REALFILE | 
+	    sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
 	cp $TMPFILE $REALFILE
-	[ "$QUIET" = 'yes' ] || echo "Removed dnsupdate hook from $REALFILE" >&2
+	verbose "Removed dnsupdate hook from $REALFILE"
 }
 
 
@@ -149,7 +169,8 @@ solaris_script () {
 # usage: eventhook <interface> <event>
 case "$2" in
 	BOUND|EXTEND)
-		/opt/quest/sbin/dnsupdate `/sbin/dhcpinfo -i "$1" Yiaddr`
+		addr=`/sbin/dhcpinfo -i "$1" Yiaddr`
+		/opt/quest/sbin/dnsupdate $addr
 	;;
 esac
 .
@@ -165,19 +186,17 @@ solaris_vars () {
 # Also uses $TMPFILE to store working data
 # The $1 arg should be a platform like 'suse' (to call suse_inst)
 try_inst () {
-	if test $# -ne 1 || test -z "$TMPFILE" || test -z "$HOOKFILE"; then
-		return 1 # Some idiot is driving this thing. Move over sweetheart!
+	if test $# -ne 1 -o -z "$TMPFILE" -o -z "$HOOKFILE"; then
+		return 1
 	fi
 
 	if [ -f $HOOKFILE ]; then
-		$1_script >> $HOOKFILE
+		${1}_script >> $HOOKFILE
 	else
-		echo '#!/bin/sh' > $TMPFILE
-		$1_script >> $TMPFILE
-		cp $TMPFILE $HOOKFILE
+		{ echo '#!/bin/sh'; ${1}_script; } > $HOOKFILE
+		chmod +x $HOOKFILE
 	fi
-	chmod +x $HOOKFILE
-	[ "$QUIET" = "yes" ] || echo "Successfully installed hook into $HOOKFILE" >&2
+	verbose "Successfully installed hook into $HOOKFILE"
 }
 
 # Tries to remove the output of $1_script from $HOOKFILE (removing $HOOKFILE
@@ -185,28 +204,31 @@ try_inst () {
 # Also uses $TMPFILE to store working data
 # Usage is like try_inst
 try_rm () {
-	if test $# -ne 1 || test -z "$TMPFILE" || test -z "$HOOKFILE"; then
-		return 1 # Some idiot is driving this thing. Move over sweetheart!
+	if test $# -ne 1 -o -z "$TMPFILE" -o -z "$HOOKFILE"; then
+		return 1 
 	fi
 
 	test -f $HOOKFILE || return 0
 
-	$1_script > $TMPFILE
+	${1}_script > $TMPFILE
 
-	linecount=`wc -l $TMPFILE | awk '{print $1}'`
+	linecount=`wc -l < $TMPFILE`
 	if tail -$linecount $HOOKFILE | cmp $TMPFILE - > /dev/null; then
-		# Strip the dnsupdate bit from the end of the file
-		head_minus_lines $linecount $HOOKFILE > $TMPFILE
-		if [ `wc -l $TMPFILE | awk '{ print $1 }'` -eq 1 ]; then
-			# BANG BANG BANG! (Just the bang left in the script)
-			rm -f $HOOKFILE
-		else
-			cp $TMPFILE $HOOKFILE
+		# Strip the dnsupdate script from the end of the hook file
+		cp $HOOKFILE $TMPFILE
+		head_minus_lines $linecount $TMPFILE > $HOOKFILE
+
+		# Remove the hook file if it consists only of shell magic
+		echo '#!/bin/sh' > $TMPFILE
+		if cmp $HOOKFILE $TMPFILE >/dev/null; then
+		    rm -f $HOOKFILE
 		fi
-		[ "$QUIET" = 'yes' ] || echo "Successfully removed the dnsupdate hook from $HOOKFILE" >&2
+
+		verbose "dnsupdate hook removed from $HOOKFILE"
 	else
-		echo "Couldn't figure out how to remove the dnsupdate hook from $HOOKFILE" >&2
-		echo "You might like to try removing it yourself." >&2
+	        error   "Unable to find dnsupdate hook in $HOOKFILE"
+		verbose "No changes made to $HOOKFILE"
+		verbose "Manual editing of $HOOKFILE may be necessary."
 	fi
 }
 
@@ -249,7 +271,7 @@ hpux_rm () {
 }
 
 
-# dhclient hook based on dhclient-script(8) manpage
+# Linux dhclient hook based on dhclient-script(8) manpage
 # This function being called dhclient_script is accidental coincidence
 dhclient_script () {
 	# Hook is sourced (not executed)
@@ -295,13 +317,13 @@ dhcpcd_old_vars () {
 }
 
 dhc_something_inst () {
-	dhc=`what_dhc`
+	probe_dhc
 	${dhc}_vars
 	try_inst ${dhc}
 }
 
 dhc_something_rm () {
-	dhc=`what_dhc`
+	probe_dhc
 	${dhc}_vars
 	try_rm ${dhc}
 }
@@ -321,18 +343,6 @@ test x"$BOOTPROTO" = x"dhcp" || exit 0
 .
 }
 
-
-ACTION=
-case $OPERATION_MCGUYVER in
-	i)
-		ACTION='inst';;
-	r)
-		ACTION='rm';;
-	*)
-		echo "Unrecognised operation '-$OPERATION_MCGUYVER'" >&2
-		exit 1;;
-esac
-
 case $PLATFORM in
 	redhat|linux|rpm|suse)
 		dhc_something_$ACTION;;
@@ -343,7 +353,7 @@ case $PLATFORM in
 	solaris)
 		solaris_$ACTION;;
 	*)
-		echo "Unrecognised platform '$PLATFORM'" >&2
+		error "Unrecognised platform '$PLATFORM'"
 		exit 1;;
 esac
 
