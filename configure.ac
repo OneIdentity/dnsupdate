@@ -2,7 +2,7 @@
 
 AC_INIT([dnsupdate],
 	[1.2.1.]esyscmd(svnversion -n . /trunk || echo 0),
-	[general@rc.vintela.com])
+	[support@quest.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([dnsupdate.c])
 AC_CONFIG_FILES([Makefile])
