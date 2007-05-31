@@ -191,8 +191,6 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 
     major = gss_get_mic(&minor, ctx->gssctx, 0, &msgbuf, &tokbuf);
     if (GSS_ERROR(major)) {
-	warn("vas_gss_spnego_initiate: %s", 
-                vas_err_get_string(ctx->vasctx, 1));
 	print_gss_error("gss_get_mic: cannot sign", ctx, major, minor);
 	errx(1, "gss_get_mic");
     }
