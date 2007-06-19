@@ -42,8 +42,8 @@ usage () {
 
 	Options:
 	 -i    Installs a DHCP client hook to run dnsupdate on address changes.
-	 -r    Remove the last installed hook.
-	 -q    Quiet. Suppress informational messages.
+	 -r    Removes the last installed hook.
+	 -q    Quiet, no informational messages.
 
 	 <platform>    Style of script to install. Must be one of:
 	               linux, aix, hpux, or solaris
@@ -76,12 +76,12 @@ while getopts irq f; do
 		i) ACTION=inst;;
 		r) ACTION=rm;;
 		q) QUIET=true;;
-		*) error "unknown option $f";;
+		*) error "unknown option '$f'";;
 	esac
 done
 
 if [ -z "$ACTION" ]; then
-	error "One of -i or -r is required"
+	$ERROR || error "One of -i or -r is required"
 fi
 
 shift `expr $OPTIND - 1`
@@ -177,6 +177,12 @@ esac
 }
 
 solaris_vars () {
+	case `uname -r` in
+	    5.[6789])	
+	       error "DHCP event hooks only became available in Solaris 10"
+	       exit 1
+	       ;;
+	esac
 	HOOKFILE=/etc/dhcp/eventhook
 	TMPFILE=${HOOKFILE}${TMPSUFFIX}
 }
