@@ -4,7 +4,7 @@
 %set
   name="quest-dnsupdate"
   pp_solaris_name=QSFTdnsup
-  summary="Updates dynamic DNS records for DHCP clients"
+  summary="Updates Dynamic DNS"
 
 %files
   $sbindir/dnsupdate
