@@ -1,6 +1,4 @@
-1.2.2
-    - ...
-1.2.1
+1.2.1.48 [2007-07-11]
     - only support DHCP hooks in Solaris 10 and later
     - bug 189: solaris hook used wrong path to dnsupdate
     - added -N option (no-authenticate)
