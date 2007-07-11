@@ -1,9 +1,12 @@
 1.2.2
-    - bug 189: solaris hook used wrong path to dnsupdate
+    - ...
 1.2.1
+    - only support DHCP hooks in Solaris 10 and later
+    - bug 189: solaris hook used wrong path to dnsupdate
     - added -N option (no-authenticate)
-    - bug 72: long TSIG identifier causes refused updates
+    - bug 72: long TSIG identifier causes refused updates; -I flag reverts
     - improve portability to Solaris 2.6, package name is now QSFTdnsup
+    - improve portability to older versions of VAS 3
 1.2.0.30 [2006-08-07]
     - add hook install script
     - improve documentation, portability, error messages
