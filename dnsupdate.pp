@@ -16,10 +16,11 @@
 [solaris] install_platform=solaris
 [sd]      install_platform=hpux
 [aix]     install_platform=aix
+[deb]     install_platform=deb
 
-%post [rpm,solaris,sd,aix]
+%post [rpm,solaris,sd,aix,deb]
  %{libexecdir}/dnsupdate-install-hooks -i %{install_platform}
-%preun [rpm,solaris,sd,aix]
+%preun [rpm,solaris,sd,aix,deb]
  %{libexecdir}/dnsupdate-install-hooks -r %{install_platform}
 
 # vim: ts=2:sw=2:et

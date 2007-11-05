@@ -294,8 +294,12 @@ esac
 }
 
 dhclient_vars () {
-	HOOKFILE=/etc/dhclient-exit-hooks
-	TMPFILE=/etc/dhclient-exit-hooks$TMPSUFFIX
+	if [ -d /etc/dhcp3/dhclient-exit-hooks.d ]; then
+		HOOKFILE=/etc/dhcp3/dhclient-exit-hooks.d/dnsupdate
+	else
+		HOOKFILE=/etc/dhclient-exit-hooks
+	fi
+	TMPFILE=$HOOKFILE$TMPSUFFIX
 }
 
 
@@ -350,7 +354,7 @@ test x"$BOOTPROTO" = x"dhcp" || exit 0
 }
 
 case $PLATFORM in
-	redhat|linux|rpm|suse)
+	redhat|linux|rpm|suse|deb)
 		dhc_something_$ACTION;;
 	aix)
 		aix_$ACTION;;
