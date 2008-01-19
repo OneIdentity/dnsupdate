@@ -23,11 +23,18 @@ getopt(int argc, char * const argv[], const char *optstring)
     const char *p;
     char ch;
 
-    if (argv[optind] == NULL || *argv[optind] != '-')
+    if (argv[optind] == NULL || *argv[optind] != '-' || !argv[optind][1])
 	return -1;
 
-    p = optstring;
     ch = argv[optind][optidx + 1];
+
+    if (ch == '-' && optidx == 0 && !argv[optind][2]) {
+        optind++;
+        optidx = 0;
+        return -1;
+    }
+
+    p = optstring;
     if (*p == ':')
 	p++;
     while (*p) {
@@ -64,7 +71,7 @@ getopt(int argc, char * const argv[], const char *optstring)
 	}
 	optind++;
 	optidx = 0;
-    } else if (argv[optind][2] == '\0') {
+    } else if (argv[optind][optidx + 2] == '\0') {
 	optind++;
 	optidx = 0;
     } else 
