@@ -1,7 +1,7 @@
 # (c) 2006 Quest Software, Inc. All rights reserved.
 
 AC_INIT([dnsupdate],
-	[1.2.2.]esyscmd(svnversion -n . /trunk || echo 0),
+	[1.3.0.]esyscmd(svnversion -n . /trunk || echo 0),
 	[support@quest.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([dnsupdate.c])
