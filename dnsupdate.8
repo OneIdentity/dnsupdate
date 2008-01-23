@@ -4,7 +4,7 @@
 dnsupdate \- updates a DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
-[\-INv]
+[\-INrv]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
 .RI [\-s\  nameserver ]
@@ -41,6 +41,12 @@ which is understood by Active Directory.
 .TP
 \-N
 disable GSS authentication
+.TP
+\-r
+Update the reverse PTR record instead.
+The reverse name in in-addr.arpa is computed from the
+.I ipaddr
+and a PTR record update is attempted.
 .TP
 .RI \-s\  nameserver
 specifies the nameserver host to send the dynamic DNS update requests to.

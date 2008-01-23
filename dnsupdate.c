@@ -210,6 +210,8 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 
 /*
  * Perform a DNS update
+ * udata is treated as binary, unless udatalen is -1, in which case
+ * udata is treated as a domain name.
  * Returns 0 on error.
  */
 static int
@@ -276,7 +278,13 @@ update(int s, struct verify_context *vctx,
     dns_wr_data(msg, NULL, 0);
     if (udata) {
 	dns_wr_rr_head(msg, &addrr);
-	dns_wr_data(msg, udata, udatalen);
+	if (udatalen == -1) {	/* If udatalen == -1, then its a domain name */
+	    uint16_t mark;
+	    dns_wr_begin(msg, &mark);
+	    dns_wr_name(msg, udata);
+	    dns_wr_end(msg, &mark);
+	} else
+	    dns_wr_data(msg, udata, udatalen);
     }
 
     if (vctx)
@@ -568,9 +576,15 @@ main(int argc, char **argv)
     int ch;
     int opterror = 0;
     int Nflag = 0;
+    int rflag = 0;
+    uint16_t utype;
+    const void *udata;
+    const char *name;
+    size_t udatalen;
+    char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
 
     /* Argument processing */
-    while ((ch = getopt(argc, argv, "d:h:INs:t:v")) != -1)
+    while ((ch = getopt(argc, argv, "d:h:INrs:t:v")) != -1)
 	switch (ch) {
 	case 'd':
 	    domain = strdup(optarg);
@@ -584,6 +598,9 @@ main(int argc, char **argv)
 	    break;
 	case 'N':
 	    Nflag = 1;
+	    break;
+	case 'r':		    /* Update reverse PTR record instead */
+	    rflag = 1;
 	    break;
 	case 's':
 	    nameserver = optarg;
@@ -615,6 +632,7 @@ main(int argc, char **argv)
 			" [-h hostname]"
 			" [-I]"
 			" [-N]"
+			" [-r]"
 			" [-s nameserver]"
 		        " [-t ttl]"
 	       		" [-v]"
@@ -700,6 +718,23 @@ main(int argc, char **argv)
 	    errx(1, "vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
     }
 
+    if (rflag)  {
+	snprintf(reverse, sizeof reverse,
+		"%u.%u.%u.%u.IN-ADDR.ARPA",
+		ipaddr[3], ipaddr[2], ipaddr[1], ipaddr[0]);
+	name = reverse;
+	utype = DNS_TYPE_PTR;
+	udata = fqdn;
+	udatalen = -1;
+	if (vflag)
+	    fprintf(stderr, "reverse: %s\n", reverse);
+    } else {
+	name = fqdn;
+	utype = DNS_TYPE_A;
+	udata = ipaddr;
+	udatalen = sizeof ipaddr;
+    }
+
     /* Try each nameserver, until one works */
     ret = 0;
     for (serverp = servers; *serverp; serverp++) {
@@ -708,12 +743,12 @@ main(int argc, char **argv)
 	s = dnstcp_connect(*serverp);
 	if (s != -1) {
             if (Nflag)
-                ret = update(s, NULL, fqdn, DNS_TYPE_A, DNS_CLASS_IN,
-                        ttl, ipaddr, sizeof ipaddr);
+                ret = update(s, NULL, name, utype, DNS_CLASS_IN,
+                        ttl, udata, udatalen);
             else
-                ret = gss_update(vas_ctx, local_id, s, *serverp, fqdn, 
-                        domain, DNS_TYPE_A, DNS_CLASS_IN, ttl, ipaddr, 
-                        sizeof ipaddr);
+                ret = gss_update(vas_ctx, local_id, s, *serverp, name, 
+                        domain, utype, DNS_CLASS_IN, ttl, udata, 
+                        udatalen);
 	    dnstcp_close(&s);
 	    if (ret)
 		break;
