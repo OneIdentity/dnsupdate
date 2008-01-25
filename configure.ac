@@ -9,6 +9,7 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_HEADERS([config.h])
 
 AC_PREFIX_DEFAULT([/opt/quest])
+AC_SUBST([mandir], ['${prefix}/man'])
 
 AC_PROG_CC
 AC_C_CONST
