@@ -5,6 +5,7 @@ dnsupdate \- updates a DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
 [\-INrv]
+.RI [\-a\  auth-domain ]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
 .RI [\-s\  nameserver ]
@@ -21,6 +22,10 @@ The
 utility should be run whenever the primary interface's IP address is configured
 (e.g. from a DHCP hook).
 .SS OPTIONS
+.TP
+.RI \-a\  auth-domain
+specifies the authoritative domain to use when updaing.
+The default is to determine the authoritative domain automatically.
 .TP
 .RI \-d\  domain
 specifies the Active Directory domain (realm) in which to authenticate.

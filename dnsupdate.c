@@ -60,11 +60,13 @@ static void	*sign(struct dns_tsig *tsig, void *data, size_t datalen,
        			void *context);
 static int	 update(int s, struct verify_context *vctx, const char *fqdn,
        			uint16_t utype, uint16_t uclass, uint32_t uttl,
-		       	const void *udata, size_t udatalen);
+		       	const void *udata, size_t udatalen, 
+			const char *auth_domain);
 static int	 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s, 
 			const char *server, const char *fqdn, 
 			const char *domain, uint16_t utype, uint16_t uclass, 
-			uint32_t uttl, const void *udata, size_t udatalen);
+			uint32_t uttl, const void *udata, size_t udatalen,
+			const char *auth_domain);
 static int	 my_inet_aton(const char *s, unsigned char *ipaddr, 
                         size_t ipaddrsz);
 
@@ -209,30 +211,119 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 }
 
 /*
+ * Perform a DNS query
+ * We're only interested in the authoritative response; we don't actually
+ * care if the name is there or not..
+ * Returns 0 on success, and assigns a string to auth_domain.
+ */
+static int
+query_auth(int s, const char *fqdn, uint16_t utype, uint16_t uclass,
+	char **auth_domain_ret)
+{
+    struct dns_msg *msg = NULL;
+    struct dns_header header, rheader;
+    struct dns_rr zonerr, authrr, rr;
+    char buffer[32768];
+    int len;
+    int rcode = -1;
+
+    memset(&header, 0, sizeof header);
+    header.id = unique_id();
+    header.opcode = DNS_OP_QUERY;
+    header.recurse_desired = 1; /* Don't care how we get it */
+
+    /* Questions */
+    header.qdcount++;
+    memset(&zonerr, 0, sizeof zonerr);
+    dns_rr_set_name(&zonerr, fqdn);
+    zonerr.type = utype;
+    zonerr.class_ = uclass;
+
+    msg = dns_msg_new();
+    dns_msg_setbuf(msg, buffer, sizeof buffer);
+    dns_wr_header(msg, &header);
+    dns_wr_question(msg, &zonerr);
+    dns_wr_finish(msg);
+
+    if (vflag)
+	fprintf(stderr, "sending query...\n");
+    dnstcp_sendmsg(s, msg);
+
+    if (vflag) {
+	if (vflag > 1) {
+	    dumpmsg(msg);
+	    fprintf(stderr, "\n");
+	}
+	fprintf(stderr, "waiting for query reply\n");
+    }
+
+    len = dnstcp_recv(s, buffer, sizeof buffer);
+    if (len <= 0) {
+	fprintf(stderr, "no reply to query?\n");
+	goto fail;
+    }
+    dns_msg_setbuf(msg, buffer, len);
+
+    if (vflag > 1) {
+	dumpmsg(msg);
+	fprintf(stderr, "\n");
+    }
+
+    dns_rd_header(msg, &rheader);
+    if (rheader.id != header.id || rheader.opcode != DNS_OP_QUERY) {
+	fprintf(stderr, "bad reply to query\n");
+	goto fail;
+    }
+
+    /* We don't actually care what the server's response is.
+     * We only want the authority records */
+    if (vflag)
+	fprintf(stderr, "server response: %s\n",
+	    dns_rcode_name(rheader.rcode));
+
+    if (!rheader.nscount) {
+	if (vflag)
+	    fprintf(stderr, "no authority records returned\n");
+	goto fail;
+    }
+
+    /* Skip some RRs */
+    while (rheader.qdcount--) 
+	dns_rd_question(msg, &rr);
+    while (rheader.ancount--) 
+	dns_rd_rr_head(msg, &rr);
+    
+    dns_rd_rr_head(msg, &authrr);
+    *auth_domain_ret = strdup(authrr.name);
+
+    rcode = 0;
+    /* Fallthrough to return success */
+
+fail:
+    if (msg)
+	dns_msg_free(msg);
+    return rcode;
+
+}
+
+/*
  * Perform a DNS update
  * udata is treated as binary, unless udatalen is -1, in which case
  * udata is treated as a domain name.
- * Returns 0 on error.
+ * Returns 0 on success, -1 on general error, otherwise a DNS rcode
  */
 static int
 update(int s, struct verify_context *vctx, 
 	const char *fqdn, uint16_t utype, uint16_t uclass, 
-	uint32_t uttl, const void *udata, size_t udatalen)
+	uint32_t uttl, const void *udata, size_t udatalen,
+	const char *auth_domain)
 {
     struct dns_msg *msg;
     struct dns_header header, rheader;
     struct dns_rr zonerr, prerr, delrr, addrr;
     char buffer[32768];
-    const char *domain;
     int len;
-
-    /* Obtain the domain of fqdn */
-    for (domain = fqdn; *domain; domain++)
-	if (*domain == '.') { domain++; break; }
-    if (!*domain) {
-	fprintf(stderr, "no domain? %s\n", fqdn);
-       	return 0;
-    }
+    int rcode = -1;
 
     memset(&header, 0, sizeof header);
     header.id = unique_id();
@@ -241,14 +332,14 @@ update(int s, struct verify_context *vctx,
     /* Questions [=Zones affected] */
     header.qdcount++;
     memset(&zonerr, 0, sizeof zonerr);
-    dns_rr_set_name(&zonerr, domain);
+    dns_rr_set_name(&zonerr, auth_domain);
     zonerr.type = DNS_TYPE_SOA;
     zonerr.class_ = DNS_CLASS_IN;
 
     /* Answers [=Prerequisites] */
     header.ancount++;
     memset(&prerr, 0, sizeof prerr);
-    dns_rr_set_name(&prerr, domain);
+    dns_rr_set_name(&prerr, auth_domain);
     prerr.type = DNS_TYPE_ANY;
     prerr.class_ = DNS_CLASS_ANY;
 
@@ -327,6 +418,7 @@ update(int s, struct verify_context *vctx,
     if (rheader.rcode != DNS_NOERROR) {
 	fprintf(stderr, "error: server failed to update: %s\n",
 	    dns_rcode_name(rheader.rcode));
+	rcode = rheader.rcode;
 	goto fail;
     }
 
@@ -341,26 +433,28 @@ update(int s, struct verify_context *vctx,
 #endif
 
     dns_msg_free(msg);
-    return 1;
+    return 0;
+
 fail:
     dns_msg_free(msg);
-    return 0;
+    return rcode;
 }
 
 /* 
  * Negotiate a GSS TKEY, and then call update()
- * Returns 0 on failure
+ * Returns 0 on success, -1 on internal failure, otherwise a DNS rcode.
  */
 static int
 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	const char *server, const char *fqdn, const char *domain,
 	uint16_t utype, uint16_t uclass, uint32_t uttl,
-	const void *udata, size_t udatalen)
+	const void *udata, size_t udatalen, const char *auth_domain)
 {
     char buffer[32768];
     struct dns_rr rr, question;
     struct dns_header header;
     int bufferlen;
+    int rcode = -1;
 
     char key_name[256];
     char server_principal[2048];
@@ -481,6 +575,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    if (recv_header.rcode != 0) {
 		fprintf(stderr, "could not negotiate GSS context: %s\n",
 			dns_rcode_name(recv_header.rcode));
+		rcode = recv_header.rcode;
 		goto fail;
 	    }
 
@@ -528,10 +623,11 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     } else
 	errx(1, "final TSIG from server was not signed");
 
-    return update(s, &vctx, fqdn, utype, uclass, uttl, udata, udatalen);
+    return update(s, &vctx, fqdn, utype, uclass, uttl, udata, 
+	    udatalen, auth_domain);
 
 fail:
-    return 0;
+    return rcode;
 }
 
 /*
@@ -580,12 +676,16 @@ main(int argc, char **argv)
     uint16_t utype;
     const void *udata;
     const char *name;
+    const char *auth_domain = NULL;
     size_t udatalen;
     char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
 
     /* Argument processing */
-    while ((ch = getopt(argc, argv, "d:h:INrs:t:v")) != -1)
+    while ((ch = getopt(argc, argv, "a:d:h:INrs:t:v")) != -1)
 	switch (ch) {
+	case 'a':
+	    auth_domain = strdup(optarg);
+	    break;
 	case 'd':
 	    domain = strdup(optarg);
 	    break;
@@ -735,6 +835,9 @@ main(int argc, char **argv)
 	udatalen = sizeof ipaddr;
     }
 
+    if (vflag)
+	fprintf(stderr, "auth_domain: %s\n", auth_domain);
+
     /* Try each nameserver, until one works */
     ret = 0;
     for (serverp = servers; *serverp; serverp++) {
@@ -742,15 +845,38 @@ main(int argc, char **argv)
 	    fprintf(stderr, "trying %s...\n", *serverp);
 	s = dnstcp_connect(*serverp);
 	if (s != -1) {
+	    char *auth = (char *)auth_domain;
+
+	    if (!auth) {
+		/* Try and look up the authoritative domain name */
+		/* Note that Windows DNS will not return authority
+		 * records if you do a PTR query */
+		query_auth(s, name, DNS_TYPE_A, DNS_CLASS_IN, &auth);
+		if (vflag)
+		    fprintf(stderr, "authoritative domain for %s: %s\n", 
+			    name, auth ? auth : "(none)");
+		if (!auth) {
+		    fprintf(stderr, "%s: no authoritative domain for %s\n",
+			    *serverp, name);
+		    ret = -1;
+		    goto done;
+		}
+	    }
+
             if (Nflag)
+		/* Perform an UN-authenticated update */
                 ret = update(s, NULL, name, utype, DNS_CLASS_IN,
-                        ttl, udata, udatalen);
+                        ttl, udata, udatalen, auth);
             else
+		/* Perform an authenticated update */
                 ret = gss_update(vas_ctx, local_id, s, *serverp, name, 
                         domain, utype, DNS_CLASS_IN, ttl, udata, 
-                        udatalen);
+                        udatalen, auth);
+done:
 	    dnstcp_close(&s);
-	    if (ret)
+	    if (auth && auth != auth_domain)
+		free(auth);
+	    if (ret == 0)
 		break;
 	}
     }

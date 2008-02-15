@@ -1,4 +1,5 @@
 1.3.0.?
+    - bug 484: detect the authoritative domain name by doing a query
     - bug 467: add -r option for PTR updates
     - bug 415: Debian and Ubuntu support
     - fix option processing bug
