@@ -332,6 +332,8 @@ rd_name(struct dns_msg *msg, char *buf, size_t bufsz, int canon_only)
     uint16_t pos_save = 0;
     uint16_t remain_save = 0;
     uint16_t offset;
+    uint16_t pointers = 0;
+#define MAXPOINTERS 32768
 
     if (bufsz < 1) 
 	goto toosmall;
@@ -351,11 +353,12 @@ rd_name(struct dns_msg *msg, char *buf, size_t bufsz, int canon_only)
 	} else {		/* compression pointer */
 	    if (canon_only)
 		rd_error("invalid name compression");
-	    if (pos_save)
-		rd_error("multiple compression");
+	    if (pointers++ > MAXPOINTERS)
+		rd_error("too much compression");
 	    dns_rd_data_raw(msg, &b2, sizeof b2);
 	    offset = ((b << 8) | b2) & 0x3fff;
-	    pos_save = msg->pos;
+	    if (!pos_save)
+		pos_save = msg->pos;
 	    remain_save = msg->remain[msg->depth];
 	    if (offset < msg->pos)
 		msg->remain[msg->depth] += msg->pos - offset;
@@ -375,7 +378,7 @@ rd_name(struct dns_msg *msg, char *buf, size_t bufsz, int canon_only)
     return;
 
 toosmall:
-    rd_error("buffer is too small");
+    rd_error("name too long for buffer");
 }
 
 void
