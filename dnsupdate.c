@@ -76,8 +76,8 @@ static int	 my_inet_aton(const char *s, unsigned char *ipaddr,
 
 
 static uint16_t next_id;			/* used by unique_id() */
-int vflag;					/* Verbose flag */
-int Iflag;                                      /* IETF-compliance flag */
+int verbose;					/* Verbose, higher value means more verbose */
+int ietf_compliant;                             /* IETF-compliance flag */
 const char *tsig_name = GSS_MICROSOFT_COM;	/* Signature standard */
 
 /* Initialises the unique ID stream */
@@ -115,11 +115,11 @@ make_key_name(const char *fqdn, char *buf, size_t bufsz)
     assert(bufsz > 31);
     for (i = 0; i < 31; i++)
 	buf[i] = domainchars[random() % (sizeof domainchars - 1)];
-    if (Iflag)
+    if (ietf_compliant)
         snprintf(buf + 31, bufsz- 31, ".%s", fqdn);
     else
         buf[i] = 0;
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "using TKEY %s\n", buf);
 }
 
@@ -171,7 +171,7 @@ verify(const void *buf, size_t buflen, const char *key_name,
     major = gss_verify_mic(&minor, ctx->gssctx, &msgbuf, &tokbuf, &qop);
     if (GSS_ERROR(major)) {
 	print_gss_error("gss_verify_mic: failed", ctx, major, minor);
-	if (vflag) {
+	if (verbose) {
 	    fprintf(stderr, "mac used was:\n");
 	    dumphex(tokbuf.value, tokbuf.length);
 	    fprintf(stderr, "msg used was:\n");
@@ -201,7 +201,7 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 	errx(1, "gss_get_mic");
     }
 
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "sign: signed %u bytes of data -> %u byte mic\n",
 	    msgbuf.length, tokbuf.length);
 
@@ -249,12 +249,12 @@ query_auth(int s, const char *fqdn, uint16_t utype, uint16_t uclass,
     dns_wr_question(msg, &zonerr);
     dns_wr_finish(msg);
 
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "sending query...\n");
     dnstcp_sendmsg(s, msg);
 
-    if (vflag) {
-	if (vflag > 1) {
+    if (verbose) {
+	if (verbose > 1) {
 	    dumpmsg(msg);
 	    fprintf(stderr, "\n");
 	}
@@ -268,7 +268,7 @@ query_auth(int s, const char *fqdn, uint16_t utype, uint16_t uclass,
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    if (vflag > 1) {
+    if (verbose > 1) {
 	dumpmsg(msg);
 	fprintf(stderr, "\n");
     }
@@ -281,12 +281,12 @@ query_auth(int s, const char *fqdn, uint16_t utype, uint16_t uclass,
 
     /* We don't actually care what the server's response is.
      * We only want the authority records */
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "server response: %s\n",
 	    dns_rcode_name(rheader.rcode));
 
     if (!rheader.nscount) {
-	if (vflag)
+	if (verbose)
 	    fprintf(stderr, "no authority records returned\n");
 	goto fail;
     }
@@ -387,12 +387,12 @@ update(int s, struct verify_context *vctx,
 		sign, vctx);
     dns_wr_finish(msg);
 
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "sending update...\n");
     dnstcp_sendmsg(s, msg);
 
-    if (vflag) {
-	if (vflag > 1) {
+    if (verbose) {
+	if (verbose > 1) {
 	    dumpmsg(msg);
 	    fprintf(stderr, "\n");
 	}
@@ -406,7 +406,7 @@ update(int s, struct verify_context *vctx,
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    if (vflag > 1) {
+    if (verbose > 1) {
 	dumpmsg(msg);
 	fprintf(stderr, "\n");
     }
@@ -416,7 +416,7 @@ update(int s, struct verify_context *vctx,
 	fprintf(stderr, "bad reply to update request\n");
 	goto fail;
     }
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "server response: %s\n",
 	    dns_rcode_name(rheader.rcode));
     if (rheader.rcode != DNS_NOERROR) {
@@ -431,7 +431,7 @@ update(int s, struct verify_context *vctx,
     if (vctx) {
 	dns_msg_setbuf(msg, buffer, len);
 	dns_tsig_verify(msg, verify, vctx);
-	if (vflag)
+	if (verbose)
 	    fprintf(stderr, "server response verified\n");
     } 
 #endif
@@ -477,7 +477,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     else
        snprintf(server_principal, sizeof server_principal,
 	    "dns/%s", server);
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "target service: %s\n", server_principal);
 
     /* Perform the GSS rounds */
@@ -537,13 +537,13 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    dns_tkey_wr(msg, &tkey);
 	    dns_wr_finish(msg);
 
-	    if (vflag)
+	    if (verbose)
 		fprintf(stderr, "sending tkey query\n");
 	    bufferlen = dnstcp_sendmsg(s, msg);
 	    if (bufferlen == -1)
 		goto fail;
 
-	    if (vflag > 1) {
+	    if (verbose > 1) {
 		dumpmsg(msg);
 		fprintf(stderr, "\n");
 	    }
@@ -551,7 +551,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    dns_msg_free(msg);
 	    (void)gss_release_buffer(&minor, &outtok);
 	} else {
-	    if (vflag > 1)
+	    if (verbose > 1)
 		fprintf(stderr, "no output token needed after this round\n");
 	}
 
@@ -559,14 +559,14 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	    struct dns_msg *msg = dns_msg_new();
 	    struct dns_header recv_header;
 
-	    if (vflag)
+	    if (verbose)
 		fprintf(stderr, "waiting for tkey reply\n");
 	    bufferlen = dnstcp_recv(s, buffer, sizeof buffer);
 	    if (bufferlen <= 0)
 		goto fail;
 	    dns_msg_setbuf(msg, buffer, bufferlen);
 
-	    if (vflag > 1) {
+	    if (verbose > 1) {
 		dumpmsg(msg);
 		fprintf(stderr, "\n");
 	    }
@@ -609,7 +609,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	} else
 	    break;
     }
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "gss context established\n");
 
     vctx.vasctx = ctx;
@@ -622,7 +622,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 	dns_msg_setbuf(msg, buffer, bufferlen);
 	dns_tsig_verify(msg, verify, &vctx);
 	dns_msg_free(msg);
-	if (vflag)
+	if (verbose)
 	    fprintf(stderr, "TSIG verified\n");
     } else
 	errx(1, "final TSIG from server was not signed");
@@ -675,8 +675,8 @@ main(int argc, char **argv)
     unsigned int ttl = 60*60;
     int ch;
     int opterror = 0;
-    int Nflag = 0;
-    int rflag = 0;
+    int use_gss_auth = 1;
+    int update_ptr = 0; /**< Update reverse (PTR) instead of forward (A) */
     uint16_t utype;
     const void *udata;
     const char *name;
@@ -698,13 +698,13 @@ main(int argc, char **argv)
 	    break;
 	case 'I':
 	    tsig_name = GSS_TSIG;
-            Iflag = 1;
+            ietf_compliant = 1;
 	    break;
 	case 'N':
-	    Nflag = 1;
+	    use_gss_auth = 0;
 	    break;
 	case 'r':		    /* Update reverse PTR record instead */
-	    rflag = 1;
+	    update_ptr = 1;
 	    break;
 	case 's':
 	    nameserver = optarg;
@@ -717,7 +717,7 @@ main(int argc, char **argv)
 	    }
 	    break;
 	case 'v':
-	    vflag++;
+	    verbose++;
 	    break;
 	default:
 	    opterror = 1;
@@ -744,7 +744,7 @@ main(int argc, char **argv)
 	exit(2);
     }
 
-    if (vflag) {
+    if (verbose) {
 	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "spn: %s\n", spn);
 	fprintf(stderr, "ttl: %u\n", ttl);
@@ -755,7 +755,7 @@ main(int argc, char **argv)
     /* Initialise random number generator */
     init_unique_id();
 
-    if (!Nflag) {
+    if (use_gss_auth) {
 
         /* Initialise VAS */
         error = vas_ctx_alloc(&vas_ctx);
@@ -820,10 +820,10 @@ main(int argc, char **argv)
     if (!fqdn)
         errx(1, "Cannot determine fully-qualified hostname; specify with -h <hostname>");
 
-    if (vflag) {
+    if (verbose) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
 
-	if (!Nflag) /* Only used with GSS auth */
+	if (use_gss_auth) /* Otherwise domain is unused and probably NULL */
 	    fprintf(stderr, "domain: %s\n", domain);
     }
 
@@ -841,7 +841,7 @@ main(int argc, char **argv)
 	    errx(1, "vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
     }
 
-    if (rflag)  {
+    if (update_ptr)  {
 	snprintf(reverse, sizeof reverse,
 		"%u.%u.%u.%u.IN-ADDR.ARPA",
 		ipaddr[3], ipaddr[2], ipaddr[1], ipaddr[0]);
@@ -849,7 +849,7 @@ main(int argc, char **argv)
 	utype = DNS_TYPE_PTR;
 	udata = fqdn;
 	udatalen = -1;
-	if (vflag)
+	if (verbose)
 	    fprintf(stderr, "reverse: %s\n", reverse);
     } else {
 	name = fqdn;
@@ -858,13 +858,13 @@ main(int argc, char **argv)
 	udatalen = sizeof ipaddr;
     }
 
-    if (vflag)
+    if (verbose)
 	fprintf(stderr, "auth_domain: %s\n", auth_domain ? auth_domain : "(none)");
 
     /* Try each nameserver, until one works */
     ret = 0;
     for (serverp = servers; *serverp; serverp++) {
-	if (vflag)
+	if (verbose)
 	    fprintf(stderr, "trying %s...\n", *serverp);
 	s = dnstcp_connect(*serverp);
 	if (s != -1) {
@@ -875,7 +875,7 @@ main(int argc, char **argv)
 		/* Note that Windows DNS will not return authority
 		 * records if you do a PTR query */
 		query_auth(s, name, DNS_TYPE_A, DNS_CLASS_IN, &auth);
-		if (vflag)
+		if (verbose)
 		    fprintf(stderr, "authoritative domain for %s: %s\n", 
 			    name, auth ? auth : "(none)");
 		if (!auth) {
@@ -886,15 +886,15 @@ main(int argc, char **argv)
 		}
 	    }
 
-            if (Nflag)
-		/* Perform an UN-authenticated update */
-                ret = update(s, NULL, name, utype, DNS_CLASS_IN,
-                        ttl, udata, udatalen, auth);
-            else
+            if (use_gss_auth)
 		/* Perform an authenticated update */
                 ret = gss_update(vas_ctx, local_id, s, *serverp, name, 
                         domain, utype, DNS_CLASS_IN, ttl, udata, 
                         udatalen, auth);
+            else
+		/* Perform an UN-authenticated update */
+                ret = update(s, NULL, name, utype, DNS_CLASS_IN,
+                        ttl, udata, udatalen, auth);
 done:
 	    dnstcp_close(&s);
 	    if (auth && auth != auth_domain)

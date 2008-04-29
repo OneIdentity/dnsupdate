@@ -5,7 +5,7 @@
 #include "dns.h"
 #include "dnsdebug.h"
 
-extern int vflag;
+extern int verbose;
 
 /*
  * Debug/dump routines.
@@ -241,7 +241,7 @@ dumpmsg(struct dns_msg *msg)
 
     assert(dns_msg_getpos(msg) == 0);
     dns_msg_getbuf(msg, &bufsave, &bufszsave);
-    if (vflag > 2)
+    if (verbose > 2)
 	dumphex(bufsave, bufszsave);
 
     dns_rd_header(msg, &header);

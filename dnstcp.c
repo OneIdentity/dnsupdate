@@ -15,7 +15,7 @@
  */
 
 static int  tcp_connect(const char *host, const char *service);
-extern int vflag;
+extern int verbose;
 
 #if HAVE_GETADDRINFO
 /* Connects to a TCP service. Returns socket descriptor or -1 on failure. */
@@ -95,7 +95,7 @@ tcp_connect(const char *host, const char *service)
     sin.sin_port = servent->s_port;	/* htons()?? */
     memcpy(&sin.sin_addr, hostent->h_addr, sizeof sin.sin_addr);
 
-    if (vflag > 2)
+    if (verbose > 2)
 	fprintf(stderr, "connecting to port %u\n", servent->s_port);
 
     if (connect(s, (struct sockaddr *)&sin, sizeof sin) < 0) {
@@ -131,13 +131,13 @@ dnstcp_send(int s, const void *buf, size_t len)
 
     b[0] = (len >> 8) & 0xff;
     b[1] = len & 0xff;
-    if (vflag > 3) 
+    if (verbose > 3) 
 	fprintf(stderr, "dnstcp_send: writing length %02x %02x\n", b[0], b[1]);
     if (write(s, b, sizeof b) != 2) {
 	warn("write");
 	return -1;
     }
-    if (vflag > 3) 
+    if (verbose > 3) 
 	fprintf(stderr, "dnstcp_send: writing %d bytes to fd %d\n", len, s);
     if (len > 0 && write(s, buf, len) != len) {
 	warn("write");
@@ -179,7 +179,7 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    if (pos) warn("close after short read");
 	    return 0;
 	}
-        if (vflag > 3)
+        if (verbose > 3)
 	   fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b);
     }
 
@@ -198,7 +198,7 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    warn("close after short read");
 	    return 0;
 	}
-        if (vflag > 3)
+        if (verbose > 3)
 	    fprintf(stderr, "[read %d of %d]\n", pos+len, msglen);
     }
     return msglen;
