@@ -804,7 +804,7 @@ main(int argc, char **argv)
 	    char hostname[HOST_NAME_MAX + 1];
 	    struct hostent *host = NULL;
 
-	    if (gethostname(hostnamebuf, sizeof(hostnamebuf)) == -1)
+	    if (gethostname(hostname, sizeof(hostname)) == -1)
 		err(1, "gethostname");
 
 	    host = gethostbyname(hostname);
