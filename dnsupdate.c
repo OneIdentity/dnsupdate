@@ -822,7 +822,9 @@ main(int argc, char **argv)
 
     if (vflag) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
-	fprintf(stderr, "domain: %s\n", domain);
+
+	if (!Nflag) /* Only used with GSS auth */
+	    fprintf(stderr, "domain: %s\n", domain);
     }
 
     /* Determine the list of possible nameservers to use */
