@@ -1,4 +1,4 @@
-/* (c) 2006, Quest Software, Inc. All rights reserved. */
+/* (c) 2008, Quest Software, Inc. All rights reserved. */
 
 #include "common.h"
 
@@ -798,6 +798,9 @@ main(int argc, char **argv)
 
     if (!fqdn)
         errx(1, "Cannot determine FQDN; specify with -h");
+
+    if (!domain)
+	errx(1, "Cannot determine domain name; specify with -d");
 
     if (vflag) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
