@@ -37,6 +37,10 @@
  *  http://technet2.microsoft.com/windowsserver/en/technologies/featured/dns/default.mspx
  */
 
+#ifndef HOST_NAME_MAX
+# define HOST_NAME_MAX 255 /* SUSv2 */
+#endif
+
 /* TSIG algorithm names */
 #define GSS_MICROSOFT_COM	"gss.microsoft.com"
 #define GSS_TSIG		"gss-tsig"
@@ -69,6 +73,8 @@ static int	 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 			const char *auth_domain);
 static int	 my_inet_aton(const char *s, unsigned char *ipaddr, 
                         size_t ipaddrsz);
+static void	 get_hostinfo(const char *hostname, char **fqhostname,
+			char **domainname);
 
 
 static uint16_t next_id;			/* used by unique_id() */
@@ -652,6 +658,80 @@ my_inet_aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz)
     return 1;
 }
 
+/**
+ * Determine the system's fully qualified host and domain names.
+ *
+ * @arg	hostname	If provided, the hostname to be used in lookups.
+ * @arg	fqhostname	If provided, where to store a pointer to the
+ * 			fully-qualified hostname.
+ * @arg	domainname	If provided, where to store a pointer to the
+ * 			fully-qualified domain name.
+ */
+static void
+get_hostinfo(const char *hostname, char **fqhostname, char **domainname)
+{
+    /* According to my ltrace, this is how `hostname --fqdn` works. */
+    char *fqdn, *domain;
+    char hostnamebuf[HOST_NAME_MAX + 1];
+    struct hostent *host = NULL;
+
+    if (!fqhostname && !domainname)
+	return;
+
+    if (!hostname) {
+	if (gethostname(hostnamebuf, sizeof(hostnamebuf)) == -1)
+	    err(1, "gethostname");
+
+	hostname = hostnamebuf;
+    }
+
+    host = gethostbyname(hostname);
+
+    if (!host)
+	err(1, "gethostbyname");
+
+    if (host->h_name)
+	fqdn = strdup(host->h_name);
+    else
+	errx(1, "Could not determine the hostname, use -h <hostname>");
+
+    if (fqhostname)
+	*fqhostname = fqdn;
+
+    assert(fqdn != NULL);
+
+    if (domainname) {
+	/* Try to find the domain, similar to the way `hostname --fqdn`
+	 * does, but we also search aliases. */
+
+	domain = strchr(fqdn, '.');
+
+	if (domain && *++domain) {
+	    domain = strdup(domain);
+	} else { /* Try the host aliases */
+	    domain = NULL;
+
+	    if (host && host->h_aliases) {
+		int i;
+
+		for (i = 0; host->h_aliases[i] && !domain; ++i) {
+		    domain = strchr(host->h_aliases[i], '.');
+
+		    if (domain && *++domain)
+			domain = strdup(domain);
+		    else
+			domain = NULL;
+		}
+	    }
+	}
+
+	if (!domain)
+	    errx(1, "Could not determine domain from hostname, use -d <domain>");
+
+	*domainname = domain;
+    }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -794,6 +874,9 @@ main(int argc, char **argv)
                 errx(1, "vas_info_joined_domain: %s", 
                         vas_err_get_string(vas_ctx, 1));
         }
+    } else { /* Don't use GSS Authentication */
+	/* Don't override the fqdn if it was already specified by the user */
+	get_hostinfo(fqdn, fqdn ? NULL : &fqdn, &domain);
     }
 
     if (!fqdn)
