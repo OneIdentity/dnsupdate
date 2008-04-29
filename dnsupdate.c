@@ -797,10 +797,10 @@ main(int argc, char **argv)
     }
 
     if (!fqdn)
-        errx(1, "Cannot determine FQDN; specify with -h");
+        errx(1, "Cannot determine fully-qualified hostname; specify with -h <hostname>");
 
     if (!domain)
-	errx(1, "Cannot determine domain name; specify with -d");
+	errx(1, "Cannot determine domain name; specify with -d <domain>");
 
     if (vflag) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
