@@ -859,7 +859,7 @@ main(int argc, char **argv)
     }
 
     if (vflag)
-	fprintf(stderr, "auth_domain: %s\n", auth_domain);
+	fprintf(stderr, "auth_domain: %s\n", auth_domain ? auth_domain : "(none)");
 
     /* Try each nameserver, until one works */
     ret = 0;
