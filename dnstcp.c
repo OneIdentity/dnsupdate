@@ -131,6 +131,23 @@ dnstcp_send(int s, const void *buf, size_t len)
 
     b[0] = (len >> 8) & 0xff;
     b[1] = len & 0xff;
+
+#if PACK_DNSTCP_SEND
+    {
+	/* There is a bug in wireshark's TCP/DNS decoder. This is 
+	 * temporary to get around it. */
+	/* See http://bugs.wireshark.org/bugzilla/show_bug.cgi?id=2272 */
+	char *tbuf = malloc(len + 2);
+	memcpy(tbuf, b, 2);
+	memcpy(tbuf + 2, buf, len);
+	if (write(s, tbuf, len + 2) != len + 2) {
+	    warn("write");
+	    free(tbuf);
+	    return -1;
+	}
+	free(tbuf);
+    }
+#else
     if (verbose > 3) 
 	fprintf(stderr, "dnstcp_send: writing length %02x %02x\n", b[0], b[1]);
     if (write(s, b, sizeof b) != 2) {
@@ -143,6 +160,7 @@ dnstcp_send(int s, const void *buf, size_t len)
 	warn("write");
 	return -1;
     }
+#endif
     return len;
 }
 
