@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.
+com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>OnDemand</key>
+        <false/>
+
+        <key>Label</key>
+        <string>com.quest.rc.ipwatchd</string>
+
+        <key>ProgramArguments</key>
+        <array>
+	    <string>$(sbindir)/ipwatchd</string>
+	    <string>-d</string>
+	    <string>$(sbindir)/dnsupdate</string>
+        </array>
+
+<!--
+        <key>ServiceDescription</key>
+        <string>Synchronizes the host's network address with DNS</string>
+	<key>Debug</key>
+	<true/>
+
+	<key>SHAuthorizationRight</key>
+	<string>system.preferences</string>
+
+	<key>ServiceIPC</key>
+	<true/>
+
+	<key>ChangeProgram</key>
+	<string>/opt/quest/sbin/dnsupdate</string>
+
+	<key>GlobalIPv4Key</key>
+	<string>State:/Network/Global/IPv4</string>
+
+	<key>PrimaryIPv4KeyPattern</key>
+	<string>State:/Network/Service/%/IPv4</string>
+
+	<key>ChangeDelay</key>
+	<real>10</real>
+-->
+
+</dict>
+</plist>
+

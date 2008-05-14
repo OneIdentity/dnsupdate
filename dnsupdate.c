@@ -804,15 +804,12 @@ main(int argc, char **argv)
 	    char hostname[HOST_NAME_MAX + 1];
 	    struct hostent *host = NULL;
 
-	    if (gethostname(hostname, sizeof(hostname)) == -1)
-		err(1, "gethostname");
+	    if (gethostname(hostname, sizeof hostname) < 0)
+		warn("gethostname");
+	    else
+		host = gethostbyname(hostname);
 
-	    host = gethostbyname(hostname);
-
-	    if (!host)
-		err(1, "gethostbyname");
-
-	    if (host->h_name)
+	    if (host && host->h_name)
 		fqdn = strdup(host->h_name);
 	}
     }
@@ -826,6 +823,10 @@ main(int argc, char **argv)
 	if (use_gss_auth) /* Otherwise domain is unused and probably NULL */
 	    fprintf(stderr, "domain: %s\n", domain);
     }
+
+    /* Check that fqdn contains a dot */
+    if (strchr(fqdn, '.') == NULL)
+	warnx("hostname '%.255s' doesn't look fully qualified", fqdn);
 
     /* Determine the list of possible nameservers to use */
     if (nameserver) {

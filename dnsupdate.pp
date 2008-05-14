@@ -11,6 +11,10 @@
   $man8dir/dnsupdate.8
   $libexecdir/dnsupdate-install-hooks
 
+%files [macos]
+  $sbindir/ipwatchd
+  /Library/LaunchDaemons/*
+
 %set
 [rpm]     install_platform=linux
 [solaris] install_platform=solaris

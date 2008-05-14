@@ -5,13 +5,14 @@ AC_INIT([dnsupdate],
 	[support@quest.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([dnsupdate.c])
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile ipwatchd/Makefile])
 AC_CONFIG_HEADERS([config.h])
 
 AC_PREFIX_DEFAULT([/opt/quest])
 AC_SUBST([mandir], ['${prefix}/man'])
 
 AC_PROG_CC
+AC_PROG_SED
 AC_C_CONST
 AC_HEADER_STDC
 AC_HEADER_TIME
@@ -30,11 +31,28 @@ break])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 
-
 AC_CHECK_TYPE([socklen_t],[AC_DEFINE([HAVE_SOCKLEN_T],[1],[socklen_t])],,[
 #if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
 ])
+
+AC_CANONICAL_HOST
+AC_MSG_CHECKING([ipwatchd needed])
+case $host in
+	*-*-darwin*)   with_ipwatchd=yes;;
+	*)	       with_ipwatchd=no;;
+esac
+AC_MSG_RESULT($with_ipwatchd)
+WITH_IPWATCHD=$with_ipwatchd
+AC_SUBST([WITH_IPWATCHD])
+AM_CONDITIONAL([WITH_IPWATCHD], test $with_ipwatchd = yes)
+
+AC_MSG_CHECKING([ipwatchd launchddir])
+if test -z "$launchddir"; then
+    launchddir=/Library/LaunchDaemons
+fi
+AC_MSG_RESULT([$launchddir])
+AC_SUBST(launchddir)
 
 AC_OUTPUT

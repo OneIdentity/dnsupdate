@@ -17,21 +17,28 @@ dnsupdate_LDADD=	$(LIBOBJS)
 dnsupdate_CFLAGS=	$(VAS_CFLAGS)
 dnsupdate_LDFLAGS=	$(VAS_LIBS)
 
-dnsupdate.spec: dnsupdate.spec.in
-	sed -e 's,[@]VERSION[@],$(VERSION),g' < $(srcdir)/dnsupdate.spec.in > $@
-
 EXTRA_DIST=	$(man_MANS) err.h \
 		dnsupdate-install-hooks dnsupdate.pp pp
 
-package: dnsupdate.pp pp
-	DESTDIR=`pwd`/destdir; \
+PP=$(srcdir)/pp
+TMP_DESTDIR=`pwd`/destdir
+package: dnsupdate.pp $(PP)
+	DESTDIR=$(TMP_DESTDIR); \
 	rm -rf $$DESTDIR; mkdir -p $$DESTDIR; \
 	$(MAKE) install DESTDIR=$$DESTDIR; \
-	$(srcdir)/pp \
+	$(PP) \
 	       --destdir=$$DESTDIR \
 	       --install-script=inst.sh \
 	    $(srcdir)/dnsupdate.pp \
 	       version=$(VERSION) \
 	       sbindir=$(sbindir) \
 	       libexecdir=$(libexecdir) \
-	       man8dir=$(man8dir)
+	       man8dir=$(man8dir) \
+	       WITH_IPWATCHD=$(WITH_IPWATCHD)
+
+SUBDIRS=
+if WITH_IPWATCHD
+SUBDIRS+=	ipwatchd
+endif
+# This is needed because distcheck sets $prefix, not $DESTDIR
+DISTCHECK_CONFIGURE_FLAGS=	launchddir='$${prefix}/launchddir'
