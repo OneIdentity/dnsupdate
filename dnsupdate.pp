@@ -13,18 +13,11 @@
 
 %files [macos]
   $sbindir/ipwatchd
-  /Library/LaunchDaemons/*
+  $man8dir/ipwatchd.8
+  $datadir/ipwatchd/
+  $datadir/ipwatchd/com.quest.rc.ipwatchd.plist
 
-%set
-[rpm]     install_platform=linux
-[solaris] install_platform=solaris
-[sd]      install_platform=hpux
-[aix]     install_platform=aix
-[deb]     install_platform=deb
-
-%post [rpm,solaris,sd,aix,deb]
- %{libexecdir}/dnsupdate-install-hooks -i %{install_platform}
-%preun [rpm,solaris,sd,aix,deb]
- %{libexecdir}/dnsupdate-install-hooks -r %{install_platform}
-
-# vim: ts=2:sw=2:et
+%post
+ %{libexecdir}/dnsupdate-install-hooks -i ${pp_platform}
+%preun
+ %{libexecdir}/dnsupdate-install-hooks -r ${pp_platform}
