@@ -1,0 +1,35 @@
+.\" (c) 2006, Quest Software, Inc. All rights reserved.
+.TH IPWATCHD 8
+.SH NAME
+ipwatchd \- runs a program when the primary IP address changes
+.SH SYNOPSIS
+.B ipwatchd
+[\-d]
+.RI [ ChangeProgram ]
+.SH DESCRIPTION
+The
+.B ipwatchd
+daemon watches the dynamic System Configuration state for interface
+address changes, and runs the given program with the new IP address.
+.PP
+The
+.B ipwatchd
+utility is intended to be started by the
+launchd(8)
+daemon.
+.SS OPTIONS
+.TP
+.RI \-d
+enables debug (verbose) mode
+.TP
+.RI ChangeProgram
+specifies the program to execute. 
+The program is given the new IP address as its first argument.
+.SH FILES
+.I /Library/LaunchDaemons/com.quest.rc.ipwatchd.plist
+.SH "SEE ALSO"
+dnsupdate(8),
+launchd(8),
+.I http://rc.vintela.com/topics/ddns/
+.SH AUTHORS
+David Leonard, Quest Software, Inc.
