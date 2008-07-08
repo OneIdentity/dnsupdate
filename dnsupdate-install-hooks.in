@@ -1,0 +1,397 @@
+#!/bin/sh
+# Script to install the required DHCP hook for various known platforms.
+# Copyright 2006 Quest Software, see the COPYING file for licencing
+# Authors: Ted Percival <ted.percival@quest.com>
+#
+# (c) 2006 Quest Software, Inc.  All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of Quest Software, Inc. nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+TMPSUFFIX='.quest-dhclient.tmp'
+
+# prints command line usage message
+usage () {
+    cat <<-.
+	Usage: $0 [-irq] <platform>
+
+	Options:
+	 -i    Installs a DHCP client hook to run dnsupdate on address changes.
+	 -r    Removes the last installed hook.
+	 -q    Quiet, no informational messages.
+
+	 <platform>    Style of script to install. Must be one of:
+	               linux, aix, hpux, or solaris
+	               ('linux' tries to detect dhclient or dhcpcd)
+
+	Warning: running this hook installation script more than once
+       	may insert multiple dnsupdate hooks, which is probably not
+	what you want.
+.
+}
+
+#-- Write a verbose, error message to stderr and exit
+die () {
+    echo "$0: error $*" >&2
+	exit 1
+}
+
+#-- Write a verbose, informational message to stderr unless QUIET is true
+verbose () {
+    $QUIET || echo "$*" >&2
+}
+
+#-- Clean up temporary files on exit
+cleanup () {
+	test -n "$TMPFILE" && rm -f "$TMPFILE"
+}
+trap cleanup 0 1 2
+
+# This function intends to act exactly as 'head --lines=-<number>' does on
+# systems with that feature. It prints all but the last <lines> lines of <file>
+# Syntax is 'head_minus_lines <lines> <file>' where lines is the number of lines
+# to skip and <file> is the file to be processed. No other options are supported
+head_minus_lines () {
+	if test $# -ne 2 -o ! -f $2; then
+		echo 'Bad argument to head_minus_lines()' >&2
+		return 1
+	fi
+
+	lines=`wc -l $2 | awk '{ print $1 }'`
+	lines=`expr $lines - $1`
+	head -n $lines $2
+}
+
+
+#------------------------------------------------------------
+# hook-style platform helper
+
+# These helper functions are for the common case where all we need to do
+# is insert a shell fragment into a script file that is run by the DHCP
+# client whenever it registers an IP address.
+
+# Requiements for 'hookable' platform $PLAT:
+#  - Set the following vars
+#		$HOOKFILE	-- script file to create or append script fragment to
+#		$TMPFILE	-- temporary place for building new hookfile
+#  - Define a function "${PLAT}_script ()" that emits a script fragment
+#       The output of the ${PLAT}_script must not contain '#!'
+#  - Call "add_hook_platform ${PLAT}"
+
+# hook_insert($PLAT)
+# Installs the output of ${PLAT}_script into $HOOKFILE.
+# $HOOKFILE is created executable with '#!/bin/sh' if it doesn't exist.
+# $TMPFILE is created to store working data. It is deleted at exit.
+hook_insert () {
+	test $# -eq 1 || die "hook_insert: missing argument"
+	test -z "$TMPFILE" || die "hook_insert $1: TMPFILE not set"
+	test -z "$HOOKFILE" || die "hook_insert $1: HOOKFILE not set"
+
+	if [ -f $HOOKFILE ]; then
+		${1}_script >> $HOOKFILE
+	else
+		{ echo '#!/bin/sh'; ${1}_script; } > $HOOKFILE
+		chmod +x $HOOKFILE
+	fi
+	verbose "Successfully installed $1 hook into $HOOKFILE"
+}
+
+# hook_remove($PLAT)
+# Removes previously inserted output of ${PLAT}_script from $HOOKFILE.
+# That is, reverses hook_insert($PLAT)
+# $HOOKFILE is deleted if the result would be that it just contains '#!/bin/sh'
+# $TMPFILE is used to store working data.
+hook_remove () {
+	test $# -eq 1 || die "hook_remove: missing argument"
+	test -z "$TMPFILE" || die "hook_remove $1: TMPFILE not set"
+	test -z "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
+
+	test -f $HOOKFILE || return 0
+
+	${1}_script > $TMPFILE
+
+	linecount=`wc -l < $TMPFILE`
+	if tail -$linecount $HOOKFILE | cmp $TMPFILE - > /dev/null; then
+		# Strip the dnsupdate script from the end of the hook file
+		cp $HOOKFILE $TMPFILE
+		head_minus_lines $linecount $TMPFILE > $HOOKFILE
+
+		# Remove the hook file if it consists only of shell magic
+		echo '#!/bin/sh' > $TMPFILE
+		if cmp $HOOKFILE $TMPFILE >/dev/null; then
+		    rm -f $HOOKFILE
+		fi
+
+		verbose "dnsupdate hook removed from $HOOKFILE"
+	else
+		echo "$0: No hook found in $HOOKFILE" >&2
+		verbose "No changes made to $HOOKFILE"
+		verbose "Manual editing of $HOOKFILE may be necessary."
+	fi
+}
+
+#-- marks platform as using hook_insert/hook_remove
+add_hook_platform () {
+	eval "${1}_insert () { hook_insert $1; }"
+	eval "${1}_remove () { hook_remove $1; }"
+}
+
+#------------------------------------------------------------
+# AIX
+
+aix_init () {
+	REALFILE=/etc/dhcpcd.ini
+	TMPFILE=/etc/dhcpcd.ini$TMPSUFFIX
+}
+
+aix_insert () {
+	sed -e '/^updateDNS/s/^/##quest-dnsupdate##/' \
+	    < $REALFILE > $TMPFILE
+	echo "updateDNS \"@sbindir@/dnsupdate '%.0s%.0s%s%.0s'\"" \
+	    >> $TMPFILE
+	cp $TMPFILE $REALFILE
+	verbose "Installed dnsupdate hook into $REALFILE"
+}
+
+aix_remove () {
+	grep -v '^updateDNS "@sbindir@/dnsupdate' < $REALFILE | 
+	    sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
+	cp $TMPFILE $REALFILE
+	verbose "Removed dnsupdate hook from $REALFILE"
+}
+
+#------------------------------------------------------------
+# Solaris
+
+add_hook_platform solaris
+
+solaris_init () {
+	case `uname -r` in
+	    5.[6789])	
+	       die "DHCP event hooks only became available in Solaris 10"
+	       ;;
+	esac
+	HOOKFILE=/etc/dhcp/eventhook
+	TMPFILE=${HOOKFILE}${TMPSUFFIX}
+}
+
+solaris_script () {
+	cat <<-'.'
+		# usage: eventhook <interface> <event>
+		case "$2" in
+			BOUND|EXTEND)
+				addr=`/sbin/dhcpinfo -i "$1" Yiaddr`
+				@sbindir@/dnsupdate $addr
+			;;
+		esac
+.
+}
+
+#------------------------------------------------------------
+# HP-UX
+
+add_hook_platform hpux
+
+hpux_init () {
+	HOOKFILE=/sbin/rc1.d/S321dnsupdate
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+hpux_script () {
+	cat <<-'.'
+		if test 0 -ne 0`/usr/sbin/ch_rc -l -p 'DHCP_ENABLE[0]'`
+		then
+			addr=`/usr/sbin/ch_rc -l -p 'IP_ADDRESS[0]'`
+			case "$addr" in
+				*.*.*.*) @sbindir@/dnsupdate $addr;;
+			esac
+		fi
+.
+}
+
+#------------------------------------------------------------
+# Linux
+
+#-- detects the kind of DHCP client in use.
+# Mostly useful for Linux distros; Standards and consistency are a good thing.
+# Possible values of $dhc are: dhclient dhcpcd odhcpcd unknown
+detect_linux_platform () {
+	if [ -x /sbin/dhclient ]; then
+		echo dhclient
+	elif [ -x /sbin/dhcpcd ]; then
+		if [ -d /etc/sysconfig/network/if-up.d ]; then
+			echo dhcpcd
+		else
+			echo odhcpcd
+		fi
+	else
+		echo "unknown"
+		return 1
+	fi
+}
+
+#------------------------------------------------------------
+# Linux dhclient
+
+add_hook_platform dhclient
+
+dhclient_init () {
+	if [ -d /etc/dhcp3/dhclient-exit-hooks.d ]; then
+		HOOKFILE=/etc/dhcp3/dhclient-exit-hooks.d/dnsupdate
+	else
+		HOOKFILE=/etc/dhclient-exit-hooks
+	fi
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+# Linux dhclient hook based on dhclient-script(8) manpage
+# This function being called dhclient_script is accidental coincidence
+dhclient_script () {
+	# Hook is sourced (not executed)
+	# Return value is to be passed in exit_status var
+	cat <<-'.'
+		# This file is sourced by dhclient-script.
+		# It doesn't matter if there is a bang (#!/bin/sh) above.
+		case "$reason" in
+		BOUND|RENEW|REBIND|REBOOT)
+			@sbindir@/dnsupdate "$new_ip_address"
+		;;
+		esac
+.
+}
+
+#------------------------------------------------------------
+# Linux odhcpcd
+
+add_hook_platform odhcpcd
+
+odhcpcd_init () {
+	if [ -d /etc/sysconfig/network/scripts ]; then
+		HOOKFILE=/etc/sysconfig/network/scripts/dhcpcd-hook
+	else
+		HOOKFILE=/etc/dhcpc/dhcpcd.exe
+	fi
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+# Based on dhcpcd(8) manpage
+odhcpcd_script () {
+	# TODO: The script is called with [ "$3" = '-d' ] for debug mode.
+	# dnsupdate should be called with '-v' if that's the case.
+	cat <<-'.'
+		. $1
+		case $2 in
+			new)
+				@sbindir@/dnsupdate "$IPADDR"
+			;;
+		esac
+.
+}
+
+#------------------------------------------------------------
+# Linux odhcpcd
+
+add_hook_platform dhcpcd
+
+dhcpcd_init () {
+	HOOKFILE=/etc/sysconfig/network/if-up.d/quest-dnsupdate
+	TMPFILE=$HOOKFILE$TMPSUFFIX
+}
+
+dhcpcd_script () {
+	cat <<'.'
+		test -f /etc/sysconfig/network/ifcfg-$1 &&
+		      . /etc/sysconfig/network/ifcfg-$1
+		test x"$BOOTPROTO" = x"dhcp" || exit 0
+		. /var/lib/dhcpcd/dhcpcd-$2.info || exit
+		@sbindir@/dnsupdate "$IPADDR"
+.
+}
+
+#------------------------------------------------------------
+# Macos
+
+macos_init () {
+	IPWATCH_PLIST=/Library/LaunchDaemons/com.quest.rc.ipwatchd.plist
+	PLIST_SRC=@datadir@/ipwatchd/com.quest.rc.ipwatchd.plist
+}
+
+macos_insert () {
+	test -r $IPWATCH_PLIST ||
+		/usr/bin/install -o root -m 644 $PLIST_SRC $IPWATCH_PLIST
+	/bin/launchctl load $IPWATCH_PLIST
+	#/bin/launchctl start com.quest.rc.ipwatchd
+}
+
+macos_remove () {
+	#/bin/launchctl stop com.quest.rc.ipwatchd
+	/bin/launchctl unload $IPWATCH_PLIST
+	cmp $IPWATCH_PLIST $PLIST_SRC > /dev/null && rm -f $IPWATCH_PLIST || :
+}
+
+#------------------------------------------------------------
+# Command line processing
+
+QUIET=false
+ERROR=false
+ACTION=
+while getopts irq f; do
+	case "$f" in
+		i) ACTION=insert;;
+		r) ACTION=remove;;
+		q) QUIET=true;;
+		*) echo "$0: unknown option '$f'" >&2; ERROR=true;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+[ -n "$ACTION" ] || ERROR=true		# -i or -r must be supplied
+[ $# -eq 1 ] || ERROR=true			# platform argument is required
+
+if $ERROR; then
+	usage >&2
+	exit 1
+fi
+
+case $1 in
+	redhat|linux|rpm|suse|deb)
+		platform=`detect_linux_platform` || die "unknown Linux platform"
+		;;
+	aix|sd|solaris|macos)
+		platform=$1
+		;;
+	*)
+		echo "$0: Unrecognised platform '$1'" >&2
+		usage
+		;;
+esac
+
+${platform}_init
+${platform}_${ACTION}
+
+exit 0
+
+# vim: ts=4:sw=4:noet
