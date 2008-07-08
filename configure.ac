@@ -48,11 +48,4 @@ WITH_IPWATCHD=$with_ipwatchd
 AC_SUBST([WITH_IPWATCHD])
 AM_CONDITIONAL([WITH_IPWATCHD], test $with_ipwatchd = yes)
 
-AC_MSG_CHECKING([ipwatchd launchddir])
-if test -z "$launchddir"; then
-    launchddir=/Library/LaunchDaemons
-fi
-AC_MSG_RESULT([$launchddir])
-AC_SUBST(launchddir)
-
 AC_OUTPUT
