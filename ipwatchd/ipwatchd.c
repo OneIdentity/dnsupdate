@@ -91,7 +91,7 @@ main(int argc, char * const argv[])
 	if (!PrimaryIPv4KeyPattern)
 		PrimaryIPv4KeyPattern = "State:/Network/Service/%/IPv4";
 	if (ChangeDelay < 0)
-		ChangeDelay = 10;
+		ChangeDelay = 30;
 
 	/* Display the configuration results */
 	if (debug) {

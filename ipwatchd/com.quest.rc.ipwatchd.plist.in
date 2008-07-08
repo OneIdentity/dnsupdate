@@ -11,16 +11,15 @@ com/DTDs/PropertyList-1.0.dtd">
 
         <key>ProgramArguments</key>
         <array>
-	    <string>$(sbindir)/ipwatchd</string>
-	    <string>-d</string>
-	    <string>$(sbindir)/dnsupdate</string>
+	    <string>@sbindir@/ipwatchd</string>
+	    <string>@sbindir@/dnsupdate</string>
         </array>
 
-<!--
         <key>ServiceDescription</key>
-        <string>Synchronizes the host's network address with DNS</string>
+        <string>Synchronizes DNS with IP address changes</string>
+
 	<key>Debug</key>
-	<true/>
+	<false/>
 
 	<key>SHAuthorizationRight</key>
 	<string>system.preferences</string>
@@ -38,8 +37,7 @@ com/DTDs/PropertyList-1.0.dtd">
 	<string>State:/Network/Service/%/IPv4</string>
 
 	<key>ChangeDelay</key>
-	<real>10</real>
--->
+	<real>30</real>
 
 </dict>
 </plist>
