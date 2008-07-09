@@ -33,35 +33,34 @@
 set -e
 TMPSUFFIX='.quest-dhclient.tmp'
 
-# prints command line usage message
+#-- Display the program usage
 usage () {
-    cat <<-.
-	Usage: $0 [-irq] <platform>
+	echo "usage: $0 [-irqh] <platform>" >&2
+        [ $# -eq 1 ] && cat <<-. >&2
+	  -h    Help (display this information)
+	  -i    Installs a DHCP client hook to run dnsupdate on address changes.
+	  -q    Quiet, no informational messages.
+	  -r    Removes the last installed hook.
 
-	Options:
-	 -i    Installs a DHCP client hook to run dnsupdate on address changes.
-	 -r    Removes the last installed hook.
-	 -q    Quiet, no informational messages.
+	  <platform>   Style of script to install. Must be one of:
+	                   linux aix hpux solaris macos
+	               (Note: 'linux' detects dhclient or dhcpcd.)
 
-	 <platform>    Style of script to install. Must be one of:
-	               linux, aix, hpux, or solaris
-	               ('linux' tries to detect dhclient or dhcpcd)
-
-	Warning: running this hook installation script more than once
-       	may insert multiple dnsupdate hooks, which is probably not
-	what you want.
+	  Warning: Running this hook installation script more than once
+	           may insert multiple dnsupdate hooks, which is probably not
+	           what you want.
 .
 }
 
 #-- Write a verbose, error message to stderr and exit
 die () {
-    echo "$0: error $*" >&2
-	exit 1
+        echo "$0: error $*" >&2
+        exit 1
 }
 
 #-- Write a verbose, informational message to stderr unless QUIET is true
 verbose () {
-    $QUIET || echo "$*" >&2
+        $QUIET || echo "quest-dnsupdate: $*" >&2
 }
 
 #-- Clean up temporary files on exit
@@ -107,8 +106,8 @@ head_minus_lines () {
 # $TMPFILE is created to store working data. It is deleted at exit.
 hook_insert () {
 	test $# -eq 1 || die "hook_insert: missing argument"
-	test -z "$TMPFILE" || die "hook_insert $1: TMPFILE not set"
-	test -z "$HOOKFILE" || die "hook_insert $1: HOOKFILE not set"
+	test -n "$TMPFILE" || die "hook_insert $1: TMPFILE not set"
+	test -n "$HOOKFILE" || die "hook_insert $1: HOOKFILE not set"
 
 	if [ -f $HOOKFILE ]; then
 		${1}_script >> $HOOKFILE
@@ -116,7 +115,7 @@ hook_insert () {
 		{ echo '#!/bin/sh'; ${1}_script; } > $HOOKFILE
 		chmod +x $HOOKFILE
 	fi
-	verbose "Successfully installed $1 hook into $HOOKFILE"
+	verbose "$1 hook installed into $HOOKFILE"
 }
 
 # hook_remove($PLAT)
@@ -126,8 +125,8 @@ hook_insert () {
 # $TMPFILE is used to store working data.
 hook_remove () {
 	test $# -eq 1 || die "hook_remove: missing argument"
-	test -z "$TMPFILE" || die "hook_remove $1: TMPFILE not set"
-	test -z "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
+	test -n "$TMPFILE" || die "hook_remove $1: TMPFILE not set"
+	test -n "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
 
 	test -f $HOOKFILE || return 0
 
@@ -145,11 +144,11 @@ hook_remove () {
 		    rm -f $HOOKFILE
 		fi
 
-		verbose "dnsupdate hook removed from $HOOKFILE"
+		verbose "hook removed from $HOOKFILE"
 	else
 		echo "$0: No hook found in $HOOKFILE" >&2
-		verbose "No changes made to $HOOKFILE"
-		verbose "Manual editing of $HOOKFILE may be necessary."
+		verbose "no changes made to $HOOKFILE"
+		verbose "manual editing of $HOOKFILE may be necessary."
 	fi
 }
 
@@ -357,23 +356,29 @@ macos_remove () {
 
 QUIET=false
 ERROR=false
-ACTION=
-while getopts irq f; do
+ACTION=unset
+while getopts hiqr f; do
 	case "$f" in
+		h) ACTION=help;;
 		i) ACTION=insert;;
-		r) ACTION=remove;;
 		q) QUIET=true;;
-		*) echo "$0: unknown option '$f'" >&2; ERROR=true;;
+		r) ACTION=remove;;
+		\?) ERROR=true;;
+		*) 
 	esac
 done
 shift `expr $OPTIND - 1`
 
-[ -n "$ACTION" ] || ERROR=true		# -i or -r must be supplied
-[ $# -eq 1 ] || ERROR=true			# platform argument is required
+case $ACTION in
+    unset)  ERROR=true;;
+    help)   usage help; exit 0;;
+esac
+
+[ $# -eq 1 ] || ERROR=true                  # platform argument is required
 
 if $ERROR; then
-	usage >&2
-	exit 1
+        usage
+        exit 1
 fi
 
 case $1 in
@@ -394,4 +399,3 @@ ${platform}_${ACTION}
 
 exit 0
 
-# vim: ts=4:sw=4:noet
