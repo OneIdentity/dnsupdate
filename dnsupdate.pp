@@ -8,8 +8,9 @@
 
 %files
   $sbindir/dnsupdate
-  $man8dir/dnsupdate.8
   $libexecdir/dnsupdate-install-hooks
+  $man8dir/dnsupdate.8
+  $man8dir/dnsupdate-install-hooks.8
 
 %files [macos]
   $sbindir/ipwatchd
@@ -18,6 +19,6 @@
   $datadir/ipwatchd/com.quest.rc.ipwatchd.plist
 
 %post
- %{libexecdir}/dnsupdate-install-hooks -i ${pp_platform}
+ %{libexecdir}/dnsupdate-install-hooks -i %{pp_platform}
 %preun
- %{libexecdir}/dnsupdate-install-hooks -r ${pp_platform}
+ %{libexecdir}/dnsupdate-install-hooks -r %{pp_platform}

@@ -6,8 +6,8 @@ VAS_CFLAGS=		`$(VASCONFIG) --cflags vas`
 VAS_LIBS=		`$(VASCONFIG) --libs vas`
 
 sbin_PROGRAMS = 	dnsupdate
-man_MANS = 		dnsupdate.8
 libexec_SCRIPTS =	dnsupdate-install-hooks
+man_MANS = 		dnsupdate.8 dnsupdate-install-hooks.8
 
 dnsupdate_SOURCES=	dnsupdate.c dns.c dnstcp.c \
 			dnsdebug.c dnstkey.c dnstsig.c \
@@ -21,9 +21,8 @@ EXTRA_DIST=	$(man_MANS) err.h \
 		dnsupdate-install-hooks.in dnsupdate.pp pp
 CLEAN_FILES= 	dnsupdate-install-hooks
 
-SUBST=	sed \
-	    -e 's,[@]datadir[@],$(datadir),g' \
-	    -e 's,[@]sbindir[@],$(sbindir),g' \
+SUBST=	sed -e 's,[@]datadir[@],$(datadir),g' \
+	    -e 's,[@]sbindir[@],$(sbindir),g'
 
 dnsupdate-install-hooks: $(srcdir)/dnsupdate-install-hooks.in
 	$(SUBST) <$(srcdir)/dnsupdate-install-hooks.in > $@
