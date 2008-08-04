@@ -76,19 +76,33 @@ int verbose;					/* Verbose, higher value means more verbose */
 int ietf_compliant;                             /* IETF-compliance flag */
 const char *tsig_name = GSS_MICROSOFT_COM;	/* Signature standard */
 
+static int random_fd = -1;
+
 /* Initialises the unique ID stream */
 void
 init_unique_id()
 {
-    srandom(time(0) * getpid());
-    next_id = random();
+    if ((random_fd = open("/dev/urandom", O_RDONLY)) < 0) {
+	srandom(time(0) * getpid());
+	next_id = random();
+    }
 }
 
 /* Returns a unique message ID for this session */
 static uint16_t
 unique_id()
 {
-    return next_id++;
+    uint16_t data;
+    int len;
+
+    if (random_fd == -1)
+	return next_id++;
+
+    if ((len = read(random_fd, &data, sizeof data)) < 0)
+	err(1, "urandom");
+    if (len != sizeof data)
+	errx(1, "urandom short read");
+    return data;
 }
 
 /* Returns true if two DNS names are the same */

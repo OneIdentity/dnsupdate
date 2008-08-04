@@ -27,6 +27,10 @@
 # endif
 #endif
 
+#if HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif

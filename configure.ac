@@ -16,7 +16,7 @@ AC_PROG_SED
 AC_C_CONST
 AC_HEADER_STDC
 AC_HEADER_TIME
-AC_CHECK_HEADERS([netdb.h unistd.h sys/socket.h errno.h netinet/in.h])
+AC_CHECK_HEADERS([netdb.h unistd.h sys/socket.h errno.h netinet/in.h fcntl.h])
 
 AC_PATH_PROG([VASCONFIG], [vas-config], [no], [/opt/quest/bin:$PATH])
 if test x"$VASCONFIG" = x"no"; then
