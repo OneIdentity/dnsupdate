@@ -52,9 +52,12 @@ struct dns_header {
 #define	DNS_BADNAME 	20	/* bad name */
 #define	DNS_BADALG 	21	/* bad algorithm */
 
+#define DNS_MAXNAME	256	/* max size of an uncompressed domain name */
+				/* string including nul (HOST_NAME_MAX+1) */
+
 /* A resource record */
 struct dns_rr {
-     char 	name[256];	/* uncompressed */
+     char 	name[DNS_MAXNAME];	/* uncompressed */
      uint16_t	type;
      uint16_t	class_;
      int32_t	ttl;		/* not present in questions */
@@ -80,7 +83,7 @@ struct dns_msg {
     uint16_t	remain[4];
     uint16_t	depth;
     struct {
-	char name[256];
+	char name[DNS_MAXNAME];
 	uint16_t offset;
     } namecache[255];
     unsigned char namecachelen;

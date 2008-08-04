@@ -37,10 +37,6 @@
  *  http://technet2.microsoft.com/windowsserver/en/technologies/featured/dns/default.mspx
  */
 
-#ifndef HOST_NAME_MAX
-# define HOST_NAME_MAX 255 /* SUSv2 */
-#endif
-
 /* TSIG algorithm names */
 #define GSS_MICROSOFT_COM	"gss.microsoft.com"
 #define GSS_TSIG		"gss-tsig"
@@ -460,7 +456,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     int bufferlen;
     int rcode = -1;
 
-    char key_name[256];
+    char key_name[DNS_MAXNAME];
     char server_principal[2048];
     gss_ctx_id_t gssctx;
     gss_buffer_desc intok, outtok;
@@ -681,6 +677,7 @@ main(int argc, char **argv)
     const void *udata;
     const char *name;
     const char *auth_domain = NULL;
+    char auth_namebuf[DNS_MAXNAME];
     size_t udatalen;
     char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
 

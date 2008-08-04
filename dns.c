@@ -461,7 +461,7 @@ wr_name(struct dns_msg *msg, const char *name, int compress)
     const char *p;
     unsigned char cachelen = msg->namecachelen;
 
-    assert(strlen(name) < 256);
+    assert(strlen(name) < DNS_MAXNAME - 1);
 
     while (*name) {
 	if (*name == '.')

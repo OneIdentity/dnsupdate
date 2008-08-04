@@ -128,7 +128,7 @@ dumpdata(struct dns_msg *msg, const char *name, uint16_t len)
 static void
 dumpname(struct dns_msg *msg, const char *name)
 {
-    char buf[256];
+    char buf[DNS_MAXNAME];
     dns_rd_name(msg, buf, sizeof buf);
     fprintf(stderr, "\t%-20s: %s\n", name, buf);
 }
