@@ -666,6 +666,79 @@ my_inet_aton(const char *s, unsigned char *ipaddr, size_t ipaddrsz)
     return 1;
 }
 
+/* Initialise GSS credentials. Returns true on success */
+static int
+gss_auth_init(vas_ctx_t **vas_ctx_p, vas_id_t **local_id_p, const char *spn)
+{
+    vas_ctx_t *vas_ctx = NULL;
+    vas_id_t *local_id = NULL;
+    vas_err_t error;
+
+    /* Initialise VAS */
+    error = vas_ctx_alloc(&vas_ctx);
+    if (error != VAS_ERR_SUCCESS) {
+	warnx("vas_ctx_alloc");
+	goto fail;
+    }
+
+    error = vas_id_alloc(vas_ctx, spn, &local_id);
+    if (error) {
+	warnx("vas_id_alloc: %s", vas_err_get_string(vas_ctx, 1));
+	goto fail;
+    }
+
+    error = vas_id_establish_cred_keytab(vas_ctx, local_id,
+	    VAS_ID_FLAG_USE_MEMORY_CCACHE, NULL);
+    if (error) {
+	warnx("vas_id_establish_cred_keytab: %s", 
+		vas_err_get_string(vas_ctx, 1));
+	goto fail;
+    }
+
+    error = vas_gss_initialize(vas_ctx, local_id);
+    if (error) {
+	warnx("vas_gss_initialize: %s", 
+		vas_err_get_string(vas_ctx, 1));
+	goto fail;
+    }
+
+    *vas_ctx_p = vas_ctx;
+    *local_id_p = local_id;
+    return 1;
+fail:
+    if (vas_ctx)
+        vas_ctx_free(vas_ctx);
+    return 0;
+}
+
+/* Determine the fully qualified domain name of the VAS-joined host */
+static int
+gss_auth_init_fqdn(vas_ctx_t *vas_ctx, vas_id_t *local_id, char *spn, 
+	char **fqdn_p)
+{
+    vas_computer_t *local_computer;
+    char *fqdn = NULL;
+    vas_err_t error;
+
+    error = vas_computer_init(vas_ctx, local_id, spn, 
+		    VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
+    if (error) {
+	warnx("vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
+	return 0;
+    }
+
+    error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
+	    &fqdn);
+    if (error) {
+	warnx("vas_computer_get_dns_hostname: %s",
+		vas_err_get_string(vas_ctx, 1));
+	return 0;
+    }
+
+    *fqdn_p = fqdn;
+    return 1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -679,7 +752,6 @@ main(int argc, char **argv)
     char *spn = "host/";
     int ret;
     vas_id_t *local_id;
-    vas_computer_t *local_computer;
     unsigned char ipaddr[4];
     char *user_servers[2];
     unsigned int ttl = 60*60;
@@ -771,63 +843,36 @@ main(int argc, char **argv)
     /* Initialise random number generator */
     init_unique_id();
 
-    if (use_gss_auth) {
+    /* Try initializing GSS authentication */
+    if (use_gss_auth && !gss_auth_init(&vas_ctx, &local_id, spn))
+	use_gss_auth = 0;
 
-        /* Initialise VAS */
-        error = vas_ctx_alloc(&vas_ctx);
-        if (error != VAS_ERR_SUCCESS)
-            errx(1, "vas_ctx_alloc");
+    /* Ask VAS for an FQDN unless specified */
+    if (use_gss_auth && !fqdn)
+	(void)gss_auth_init_fqdn(vas_ctx, local_id, spn, &fqdn);
 
-        error = vas_id_alloc(vas_ctx, spn, &local_id);
-        if (error)
-            errx(1, "vas_id_alloc: %s", vas_err_get_string(vas_ctx, 1));
-
-        error = vas_id_establish_cred_keytab(vas_ctx, local_id,
-                VAS_ID_FLAG_USE_MEMORY_CCACHE, NULL);
-        if (error)
-            errx(1, "vas_id_establish_cred_keytab: %s", 
-                    vas_err_get_string(vas_ctx, 1));
-
-        error = vas_gss_initialize(vas_ctx, local_id);
-        if (error)
-            errx(1, "vas_gss_initialize: %s", 
-                    vas_err_get_string(vas_ctx, 1));
-
-        /* Determine the fully qualified domain name to use */
-        if (!fqdn) {
-            error = vas_computer_init(vas_ctx, local_id, spn, 
-                            VAS_NAME_FLAG_NO_IMPLICIT, &local_computer);
-            if (error)
-                errx(1, "vas_computer_init: %s", vas_err_get_string(vas_ctx, 1));
-
-            error = vas_computer_get_dns_hostname(vas_ctx, local_id, local_computer,
-                    &fqdn);
-            if (error)
-                errx(1, "vas_computer_get_dns_hostname: %s",
-                        vas_err_get_string(vas_ctx, 1));
-        }
-
-        /* Determine the realm/domain to use */
-        if (!domain) {
-            error = vas_info_joined_domain(vas_ctx, &domain, NULL);
-            if (error)
-                errx(1, "vas_info_joined_domain: %s", 
-                        vas_err_get_string(vas_ctx, 1));
-        }
-    } else { /* Don't use GSS Authentication */
-	/* Determine the hostname if it was not set explicitly. */
-	if (!fqdn) {
-	    char hostname[HOST_NAME_MAX + 1];
-	    struct hostent *host = NULL;
-
-	    if (gethostname(hostname, sizeof hostname) < 0)
-		warn("gethostname");
-	    else
-		host = gethostbyname(hostname);
-
-	    if (host && host->h_name)
-		fqdn = strdup(host->h_name);
+    /* Ask VAS for the domain (realm) unless specified */
+    if (use_gss_auth && !domain) {
+	error = vas_info_joined_domain(vas_ctx, &domain, NULL);
+	if (error) {
+	    warnx("vas_info_joined_domain: %s", 
+		    vas_err_get_string(vas_ctx, 1));
+	    use_gss_auth = 0;
 	}
+    }
+    
+    /* Determine the hostname unless specified. */
+    if (!fqdn) {
+	char hostname[DNS_MAXNAME];
+	struct hostent *host = NULL;
+
+	if (gethostname(hostname, sizeof hostname) < 0)
+	    warn("gethostname");
+	else
+	    host = gethostbyname(hostname);
+
+	if (host && host->h_name)
+	    fqdn = strdup(host->h_name);
     }
 
     if (!fqdn)
@@ -835,14 +880,12 @@ main(int argc, char **argv)
 
     if (verbose) {
 	fprintf(stderr, "hostname: %s\n", fqdn);
-
-	if (use_gss_auth) /* Otherwise domain is unused and probably NULL */
-	    fprintf(stderr, "domain: %s\n", domain);
+	fprintf(stderr, "domain: %s\n", domain);
     }
 
     /* Check that fqdn contains a dot */
     if (strchr(fqdn, '.') == NULL)
-	warnx("hostname '%.255s' doesn't look fully qualified", fqdn);
+	warnx("hostname '%.255s' is not fully qualified", fqdn);
 
     /* Determine the list of possible nameservers to use */
     if (nameserver) {
@@ -923,11 +966,11 @@ done:
     if (!ret)
 	warnx("could not connect to any nameservers");
 
-    if (vas_ctx) {
-        if (!nameserver)
-            vas_info_servers_free(vas_ctx, servers);
+    if (use_gss_auth && !nameserver)
+	vas_info_servers_free(vas_ctx, servers);
+
+    if (use_gss_auth)
         vas_ctx_free(vas_ctx);
-    }
 
     exit(ret ? 0 : 1);
 }
