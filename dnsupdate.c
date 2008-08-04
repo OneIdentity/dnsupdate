@@ -696,7 +696,7 @@ main(int argc, char **argv)
     char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
 
     /* Argument processing */
-    while ((ch = getopt(argc, argv, "a:d:h:INrs:t:v")) != -1)
+    while ((ch = getopt(argc, argv, "a:d:h:INrs:t:vV")) != -1)
 	switch (ch) {
 	case 'a':
 	    auth_domain = strdup(optarg);
@@ -730,6 +730,10 @@ main(int argc, char **argv)
 	case 'v':
 	    verbose++;
 	    break;
+	case 'V':
+	    printf("%s\n", PACKAGE_STRING);
+	    exit(0);
+	    break;
 	default:
 	    opterror = 1;
 	    break;
@@ -751,6 +755,7 @@ main(int argc, char **argv)
 			" [-s nameserver]"
 		        " [-t ttl]"
 	       		" [-v]"
+	       		" [-V]"
 			" ipaddr\n", argv[0]);
 	exit(2);
     }

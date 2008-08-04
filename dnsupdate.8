@@ -4,7 +4,7 @@
 dnsupdate \- updates a DNS entry in Active Directory
 .SH SYNOPSIS
 .B dnsupdate
-[\-INrv]
+[\-INrvV]
 .RI [\-a\  auth-domain ]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
@@ -65,6 +65,9 @@ If specified as zero, the DNS entry will be deleted instead of updated.
 .TP
 \-v
 increases the level of verbosity
+.TP
+\-V
+displays version information, then exits.
 .SS "EXIT STATUS"
 The
 .B dnsupdate
