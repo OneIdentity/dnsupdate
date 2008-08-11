@@ -8,6 +8,7 @@ dnsupdate \- updates a DNS entry in Active Directory
 .RI [\-a\  auth-domain ]
 .RI [\-d\  domain ]
 .RI [\-h\  hostname ]
+.RI [\-o\  option = value ]
 .RI [\-s\  nameserver ]
 .RI [\-t\  ttl ]
 .I ip-addr
@@ -53,6 +54,9 @@ The reverse name in in-addr.arpa is computed from the
 .I ipaddr
 and a PTR record update is attempted.
 .TP
+.RI \-o\  option = value
+Overrides an option setting.
+.TP
 .RI \-s\  nameserver
 specifies the nameserver host to send the dynamic DNS update requests to.
 The default is to try all domain controllers, using the nearest first.
@@ -68,6 +72,19 @@ increases the level of verbosity
 .TP
 \-V
 displays version information, then exits.
+.SS OPTIONS
+Options are read from
+/etc/opt/quest/dnsupdate.conf
+before argument processing begins.
+.TP
+.RI UpdateSecurityLevel= integer
+A value of zero (default) indicates that an un-authenticated updated is
+tried first, and then a secure update only if the first fails.
+A value of 16 enables only un-authenticated updates.
+A value of 256 enables only authenticated updates.
+.TP
+.TI DefaultRegistrationTTL= seconds
+The default TTL used 
 .SS "EXIT STATUS"
 The
 .B dnsupdate

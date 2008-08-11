@@ -9,13 +9,21 @@ sbin_PROGRAMS = 	dnsupdate
 libexec_SCRIPTS =	dnsupdate-install-hooks
 man_MANS = 		dnsupdate.8 dnsupdate-install-hooks.8
 
-dnsupdate_SOURCES=	dnsupdate.c dns.c dnstcp.c \
-			dnsdebug.c dnstkey.c dnstsig.c \
-			common.h dns.h dnsdebug.h dnstcp.h \
-			dnstkey.h dnstsig.h
+dnsupdate_SOURCES=	dnsupdate.c 
+dnsupdate_SOURCES+=	common.h 
+dnsupdate_SOURCES+=	dns.c dns.h 
+dnsupdate_SOURCES+=	dnsdebug.c dnsdebug.h 
+dnsupdate_SOURCES+=	dnstcp.c dnstcp.h 
+dnsupdate_SOURCES+=	dnstkey.c dnstkey.h 
+dnsupdate_SOURCES+=	dnstsig.c dnstsig.h
+dnsupdate_SOURCES+=	conf.c conf.h
+dnsupdate_SOURCES+=	stream.c stream.h
+dnsupdate_SOURCES+=	resconf.c resconf.h
+dnsupdate_SOURCES+=	list.c list.h
 dnsupdate_LDADD=	$(LIBOBJS)
 dnsupdate_CFLAGS=	$(VAS_CFLAGS)
 dnsupdate_LDFLAGS=	$(VAS_LIBS)
+dnsupdate_CPPFLAGS=	-DPATH_SYSCONFDIR=\"$(sysconfdir)\"
 
 EXTRA_DIST=	$(man_MANS) err.h \
 		dnsupdate-install-hooks.in dnsupdate.pp pp
@@ -49,3 +57,13 @@ SUBDIRS=
 if WITH_IPWATCHD
 SUBDIRS+=	ipwatchd
 endif
+
+check_PROGRAMS=		conf-t
+conf_t_SOURCES=		conf-t.c conf.c conf.h stream.c stream.h
+conf_t_CFLAGS =		-ggdb
+
+check_PROGRAMS+=	list-t
+list_t_SOURCES=		list-t.c list.c list.h
+list_t_CFLAGS =		-ggdb
+
+TESTS=			$(check_PROGRAMS)

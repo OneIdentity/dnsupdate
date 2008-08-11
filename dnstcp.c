@@ -155,7 +155,8 @@ dnstcp_send(int s, const void *buf, size_t len)
 	return -1;
     }
     if (verbose > 3) 
-	fprintf(stderr, "dnstcp_send: writing %d bytes to fd %d\n", len, s);
+	fprintf(stderr, "dnstcp_send: writing %d bytes to fd %d\n", 
+		(int)len, s);
     if (len > 0 && write(s, buf, len) != len) {
 	warn("write");
 	return -1;
@@ -198,7 +199,8 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 	    return 0;
 	}
         if (verbose > 3)
-	   fprintf(stderr, "[read %d of %d header]\n", pos+len, sizeof b);
+	   fprintf(stderr, "[read %d of %d header]\n", pos+len, 
+		   (int)sizeof b);
     }
 
 

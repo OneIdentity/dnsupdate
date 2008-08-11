@@ -176,6 +176,38 @@ dumpuint32time(struct dns_msg *msg, const char *name)
 }
 
 static void
+dumpuint32rtime(struct dns_msg *msg, const char *name)
+{
+    static struct {
+	const char *abbrev;
+	uint32_t interval;
+    } intervals[] = {
+	{ "d", 24 * 60 * 60 },
+	{ "h", 60 * 60 },
+	{ "m", 60 },
+	{ "s", 1 },
+    };
+    uint32_t v,t;
+    int i, printed_something = 0;
+
+    v = dns_rd_uint32(msg);
+    t = v;
+    fprintf(stderr, "\t%-20s:", name);
+    for (i = 0; i < sizeof intervals / sizeof intervals[0]; i++) 
+	if (t >= intervals[i].interval || printed_something) {
+	    int x = t / intervals[i].interval;
+	    if (t) {
+		fprintf(stderr, " %d%s", x, intervals[i].abbrev);
+		printed_something = 1;
+	    }
+	    t = t - x * intervals[i].interval;
+	}
+    if (!printed_something)
+	fprintf(stderr, " 0");
+    fprintf(stderr, " (0x%x)\n", v);
+}
+
+static void
 dumpheader(const struct dns_header *hdr)
 {
     fprintf(stderr, "    header:\n");
@@ -295,6 +327,20 @@ dumpmsg(struct dns_msg *msg)
 	    dumpuint16rcode(msg, "tkey.error");
 	    dumpdata(msg, "tkey.key", dns_rd_uint16(msg));
 	    dumpdata(msg, "tkey.other", dns_rd_uint16(msg));
+	    dns_rd_end(msg);
+	} else if (rr.type == 6) {
+	    dns_rd_begin(msg);
+	    dumpname(msg, "soa.mname");
+	    dumpname(msg, "soa.rname");
+	    dumpuint32(msg, "soa.serial");
+	    dumpuint32rtime(msg, "soa.refresh");
+	    dumpuint32rtime(msg, "soa.retry");
+	    dumpuint32rtime(msg, "soa.expire");
+	    dumpuint32(msg, "soa.minttl");
+	    dns_rd_end(msg);
+	} else if (rr.type == 2) {
+	    dns_rd_begin(msg);
+	    dumpname(msg, "ns.nsdname");
 	    dns_rd_end(msg);
 	} else {
 	    len = dns_rd_data(msg, data, sizeof data);
