@@ -1,15 +1,16 @@
 .\" (c) 2006, Quest Software, Inc. All rights reserved.
 .TH DNSUPDATE 8
 .SH NAME
-dnsupdate \- updates a DNS entry in Active Directory
+dnsupdate \- securely update domain name records (DNS)
 .SH SYNOPSIS
 .B dnsupdate
 [\-INrvV]
 .RI [\-a\  auth-domain ]
-.RI [\-d\  domain ]
+.RI [\-C\  client-spn ]
 .RI [\-h\  hostname ]
 .RI [\-o\  option = value ]
 .RI [\-s\  nameserver ]
+.RI [\-S\  server-spn ]
 .RI [\-t\  ttl ]
 .I ip-addr
 .SH DESCRIPTION
@@ -26,69 +27,126 @@ utility should be run whenever the primary interface's IP address is configured
 .TP
 .RI \-a\  auth-domain
 specifies the authoritative domain to use when updating.
-The default is to determine the authoritative domain automatically.
+This is normally the "parent" domain of the hostname.
+For example, the authoritative domain of host.example.com
+is typically example.com.
+The default is to determine the authoritative domain by performing
+an SOA query.
 .TP
-.RI \-d\  domain
-specifies the Active Directory domain (realm) in which to authenticate.
-The default is to use the currently joined domain.
+.RI \-C\  client-spn
+specifies the Kerberos service principal name of the local host
+used in secure updates.
+The default is "host/".
 .TP
 .RI \-h\  hostname
-specifies the fully qualified hostname to use when updating the DNS entry.
-The default is to use the DNS hostname associated with the computer object
-corresponding to the system host principal.
+specifies the fully qualified domain name of the entry to update.
+The default, when using secure updates, is to the hostname 
+of the computer object corresponding to the system host principal.
+When using unsecure updates, the default hostname is obtained from the 
+operating system, and affixed if necessary by the resolver configuration.
 .TP
 \-I
 use the IETF's
 .I gss-tsig
-algorithm name (see RFC 3654).
+algorithm name when securely updating (see RFC 3654).
 The default is to use
 .I gss.microsoft.com
 which is understood by Active Directory.
 .TP
 \-N
-disable GSS authentication
+disable secure authentication.
+This option is the same as specifying \-o\ UpdateSecurityLevel=16.
 .TP
 \-r
-Update the reverse PTR record instead.
-The reverse name in in-addr.arpa is computed from the
-.I ipaddr
-and a PTR record update is attempted.
+Always attempt to update the reverse (PTR) record for the given
+.IR ipaddr .
+This option is the same as specifying \-o\ RegisterReverseLookup=1.
 .TP
 .RI \-o\  option = value
 Overrides an option setting.
+See the section on Configuration Options, below.
 .TP
 .RI \-s\  nameserver
-specifies the nameserver host to send the dynamic DNS update requests to.
-The default is to try all domain controllers, using the nearest first.
+specifies a whitespace-separated list of nameserver 
+to send the update requests to.
+The default is to try the primary authoritative nameserver associated with the 
+authoritative domain,
+and if that fails, to try all the nameservers that serve the 
+authoritative domain, in order.
+.TP
+.RI \-S\  server-spn
+specifies the Kerberos service principal name of the nameserver
+to use in secure updates.
+This typically only makes sense when the \-s option is used.
+By default, the nameserver's service principal name is computed by 
+prefixing its fully qualified domain name with "dns/".
 .TP
 .RI \-t\  ttl
-specifies the name's DNS cache lifetime, in seconds.
-If not provided, defaults to one hour.
-This value is not the same as the DHCP lease time.
+specifies the updated records cache lifetime, in seconds.
+If not provided, defaults to
+fifteen minutes.
+Note that this value is
+.B not
+the same as the DHCP lease time.
 If specified as zero, the DNS entry will be deleted instead of updated.
+This option is the same as specifying
+.RI \-o\ RegistrationTtl= ttl .
 .TP
 \-v
-increases the level of verbosity
+increases the verbosity of messages written to standard error.
 .TP
 \-V
-displays version information, then exits.
-.SS OPTIONS
-Options are read from
-/etc/opt/quest/dnsupdate.conf
+displays the version information of the program, then exits.
+.SS "CONFIGURATION OPTIONS"
+The following options are read from the configuration file,
+.IR /etc/opt/quest/dnsupdate.conf ,
 before argument processing begins.
+These are deliberately similar to the Group Policy settings
+for Microsoft's DNS client.
 .TP
-.RI UpdateSecurityLevel= integer
-A value of zero (default) indicates that an un-authenticated updated is
-tried first, and then a secure update only if the first fails.
-A value of 16 enables only un-authenticated updates.
-A value of 256 enables only authenticated updates.
+.RI UpdateSecurityLevel\ =\  level
+A
+.I level
+of 0 (the default) causes
+.B dnsupdate
+to try an unsecure update first,
+and if that fails then a secure update.
+A
+.I level
+of 16 causes only unsecure updates to be attempted.
+A
+.I level
+of 256 causes only secure updates to be attempted.
 .TP
-.TI DefaultRegistrationTTL= seconds
-The default TTL used 
+.RI RegistrationTTL\ =\  ttl
+See the description for the \-t option, above.
+.TP
+.RI RegisterReverseLookup\ =\  level
+A
+.I level
+of 0 disables all PTR update attempts.
+A
+.I level
+of 1 enables all PTR update attempts.
+A
+.I level
+of 2 (the default) enables PTR update attempts only if A updates succeed.
+.TP
+.RI RegistrationEnabled\ =\  integer
+If this option is set to 0 then
+.B dnsupdate
+will refuse to perform any dynamic updates.
+The default setting is 1.
+.TP
+.RI UpdateTopLevelDomainZones\ =\  integer
+When this option is set to 0 (the default), then
+.B dnsupdate
+refuses to perform dynamic updates when the authoritative domain
+is either the root domain ("."), or a top-level domain (such as "com").
 .SS "EXIT STATUS"
 The
 .B dnsupdate
-utility exits with status 0 if the update succeeded.
+utility exits with status 0 if the update for the A record succeeded.
 .SH "SEE ALSO"
 vastool(1),
 dnsupdate-install-hooks(8),

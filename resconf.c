@@ -18,12 +18,25 @@ static struct {
     char *nameserver, *domain, *search;
 } resconf;
 
+static void load_resolv_file(const char *path);
 static char **to_field(const char *name);
 
 
 /* Reads lines from resolv.conf and calls resconf_set() to set options */
 void
 resconf_init()
+{
+    char *localdomain;
+
+    load_resolv_file("/etc/resolv.conf");
+
+    /* The environment variable LOCALDOMAIN overrides search */
+    if ((localdomain = getenv("LOCALDOMAIN")) != NULL)
+	resconf_set("search", localdomain);
+}
+
+static void
+load_resolv_file(const char *path)
 {
     struct stream stream;
     struct buffer option;
@@ -35,7 +48,7 @@ resconf_init()
 #define ENDOFLINE   "\n"
 #define IDENTIFIER  "a-zA-Z_0-9."
 
-    if (!stream_init_path(&stream, "/etc/resolv.conf"))
+    if (!stream_init_path(&stream, path))
 	return;
     buffer_init(&option);
     buffer_init(&arg);
@@ -104,7 +117,7 @@ resconf_get(const char *option)
     return list_from_string(*ptr ? *ptr : "");
 }
 
-/* Free array returned by resconf_get */
+/* Free list returned by resconf_get.  */
 void
 resconf_free(char **argv)
 {
@@ -123,7 +136,22 @@ resconf_set(const char *option, const char *arg)
 	return;				    /* Ignore unknown option names */
     if (*ptr)
 	free(*ptr);			    /* Free old option */
-    *ptr = strdup(arg);
+    *ptr = arg ? strdup(arg) : NULL;
+
+    /*
+     * 'search' and 'domain' are mutually exclusive.
+     * Setting one destroys the other
+     */
+    if (arg && ptr == &resconf.domain && resconf.search) {
+	free(resconf.search);
+	resconf.search = NULL;
+    }
+    if (arg && ptr == &resconf.search && resconf.domain) {
+	free(resconf.domain);
+	resconf.domain = NULL;
+    }
+
     if (verbose > 2)
-	fprintf(stderr, "resconf_set: set %s = %s\n", option, *ptr);
+	fprintf(stderr, "resconf_set: set %s = %s\n", option, 
+		*ptr ? *ptr : "(null)");
 }

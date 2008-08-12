@@ -134,3 +134,20 @@ list_dup(char **list)
     list_copy[nwords] = NULL;
     return list_copy;
 }
+
+/* Removes all elements from a list that are equal to item.
+ * Preserves order of remaining elements. Resulting list may be empty. */
+void
+list_remove(char **list, const char *item)
+{
+    char **ok;
+
+    if (!list)
+	return;
+    for (ok = list; *list; list++)
+	if (strcmp(*list, item) == 0)
+	    free(*list);
+	else
+	    *ok++ = *list;
+    *ok = NULL;
+}

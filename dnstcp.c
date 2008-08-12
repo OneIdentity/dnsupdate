@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+#if HAVE_SIGNAL_H
+# include <signal.h>
+#endif
+
 #include "err.h"
 #include "dns.h"
 #include "dnstcp.h"
@@ -109,6 +113,51 @@ tcp_connect(const char *host, const char *service)
 
 #endif /* ! HAVE_GETADDRINFO */
 
+/*
+ * Forks a wrapper program, setting up a TCP-like socket for communication
+ */
+static int
+debug_connect(const char *wrapper, const char *host)
+{
+    int sp[2];
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0) {
+	warn("socketpair");
+	return -1;
+    }
+
+    if (signal(SIGCHLD, SIG_IGN) < 0)
+	warn("signal SIGCHLD");
+
+    switch (fork()) {
+    case -1:
+	warn("fork");
+	close(sp[0]);
+	close(sp[1]);
+	return -1;
+    default:
+	/* parent */
+	close(sp[1]);
+	return sp[0];
+    case 0:
+	/* child */
+	if (verbose)
+	    fprintf(stderr, "starting wrapper pid %d: %s %s\n", 
+		    getpid(), wrapper, host);
+	close(sp[0]);
+	if (dup2(sp[1], 0) < 0)
+	    warn("dup2 0");
+	if (dup2(sp[1], 1) < 0)
+	    warn("dup2 1");
+	if (sp[1] != 0 && sp[1] != 1)
+	    close(sp[1]);
+	execlp(wrapper, wrapper, host, NULL);
+	warn("%s", wrapper);
+	_exit(1);
+	/* NOTREACHED */
+    }
+}
+
 /* 
  * Connects to a DNS server using TCP. 
  * Returns a socket decsriptor or -1 on error.
@@ -116,6 +165,11 @@ tcp_connect(const char *host, const char *service)
 int
 dnstcp_connect(const char *host)
 {
+    char *debugconnect;
+
+    debugconnect = getenv("DNS_CONNECT_WRAPPER");
+    if (debugconnect && *debugconnect)
+	return debug_connect(debugconnect, host);
     return tcp_connect(host, "domain");
 }
 

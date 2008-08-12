@@ -50,3 +50,6 @@
 #if !HAVE_SOCKLEN_T
 # define socklen_t int
 #endif
+
+#define STR2(x) #x
+#define STR(x) STR2(x)

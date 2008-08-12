@@ -1,5 +1,5 @@
 
-/* Unit tests for conf */
+/* Unit tests for lists */
 
 #include <assert.h>
 #include <stdio.h>
@@ -173,6 +173,38 @@ int main()
     assert(streq(list[6], "g"));
     assert(list[7] == NULL);
     assert(list_length(list) == 7);
+
+    list_remove(list, "a");
+    assert(list != NULL);
+    assert(streq(list[0], "b"));
+    assert(streq(list[1], "c"));
+    assert(streq(list[2], "d"));
+    assert(streq(list[3], "e"));
+    assert(streq(list[4], "f"));
+    assert(streq(list[5], "g"));
+    assert(list[6] == NULL);
+    assert(list_length(list) == 6);
+
+    list_remove(list, "g");
+    assert(list != NULL);
+    assert(streq(list[0], "b"));
+    assert(streq(list[1], "c"));
+    assert(streq(list[2], "d"));
+    assert(streq(list[3], "e"));
+    assert(streq(list[4], "f"));
+    assert(list[5] == NULL);
+    assert(list_length(list) == 5);
+
+    list_append(&list, "e");
+    list_remove(list, "e");
+    assert(list != NULL);
+    assert(streq(list[0], "b"));
+    assert(streq(list[1], "c"));
+    assert(streq(list[2], "d"));
+    assert(streq(list[3], "f"));
+    assert(list[4] == NULL);
+    assert(list_length(list) == 4);
+
     list_free(list);
 
     exit(0);

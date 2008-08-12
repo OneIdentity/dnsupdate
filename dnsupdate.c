@@ -49,9 +49,13 @@
 #define SECURITY_ONLY_UNSECURE		16
 #define SECURITY_UNSECURE_THEN_SECURE	0
 
+/* Values for RegisterReverseLookup */
 #define REGISTER_PTR_NEVER		0
 #define REGISTER_PTR_ALWAYS		1
 #define REGISTER_PTR_ONLY_IF_A_SUCCEEDS	2
+
+/* Default cache TTL for updated records */
+#define DEFAULT_TTL	(15 * 60)   /* 15 minutes */
 
 /* An authentication context structure for convenience */
 struct verify_context {
@@ -76,7 +80,7 @@ static int	 update(int s, struct verify_context *vctx, const char *fqdn,
 			const char *auth_domain);
 static int	 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s, 
 			const char *server, const char *fqdn, 
-			const char *domain, uint16_t utype, uint16_t uclass, 
+			const char *serverspn, uint16_t utype, uint16_t uclass, 
 			uint32_t uttl, const void *udata, size_t udatalen,
 			const char *auth_domain);
 static int	 my_inet_aton(const char *s, unsigned char *ipaddr, 
@@ -193,7 +197,7 @@ verify(const void *buf, size_t buflen, const char *key_name,
     major = gss_verify_mic(&minor, ctx->gssctx, &msgbuf, &tokbuf, &qop);
     if (GSS_ERROR(major)) {
 	print_gss_error("gss_verify_mic: failed", ctx, major, minor);
-	if (verbose) {
+	if (verbose > 1) {
 	    fprintf(stderr, "mac used was:\n");
 	    dumphex(tokbuf.value, tokbuf.length);
 	    fprintf(stderr, "msg used was:\n");
@@ -223,7 +227,7 @@ sign(struct dns_tsig *tsig, void *data, size_t datalen, void *context)
 	errx(1, "gss_get_mic");
     }
 
-    if (verbose)
+    if (verbose > 1)
 	fprintf(stderr, "sign: signed %d bytes of data -> %d byte mic\n",
 	    (int)msgbuf.length, (int)tokbuf.length);
 
@@ -275,13 +279,12 @@ query_soa(int s, const char *fqdn, char *domain, size_t domainsz,
 	fprintf(stderr, "sending SOA query for %s...\n", fqdn);
     dnstcp_sendmsg(s, msg);
 
-    if (verbose) {
-	if (verbose > 1) {
-	    dumpmsg(msg);
-	    fprintf(stderr, "\n");
-	}
-	fprintf(stderr, "waiting for query reply\n");
+    if (verbose > 2) {
+	dumpmsg(msg);
+	fprintf(stderr, "\n");
     }
+    if (verbose > 1)
+	fprintf(stderr, "waiting for query reply\n");
 
     len = dnstcp_recv(s, buffer, sizeof buffer);
     if (len <= 0) {
@@ -290,7 +293,7 @@ query_soa(int s, const char *fqdn, char *domain, size_t domainsz,
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    if (verbose > 1) {
+    if (verbose > 2) {
 	dumpmsg(msg);
 	fprintf(stderr, "\n");
     }
@@ -301,7 +304,7 @@ query_soa(int s, const char *fqdn, char *domain, size_t domainsz,
 	fprintf(stderr, "bad reply to query\n");
 	goto fail;
     }
-    if (verbose)
+    if (verbose > 1 || (verbose && rheader.rcode))
 	fprintf(stderr, "server response: %s\n",
 	    dns_rcode_name(rheader.rcode));
     if (rheader.rcode != DNS_NXDOMAIN && rheader.rcode != DNS_NOERROR)
@@ -389,13 +392,12 @@ query_ns(int s, const char *domain, char ***list_ret)
 	fprintf(stderr, "sending NS query for %s...\n", domain);
     dnstcp_sendmsg(s, msg);
 
-    if (verbose) {
-	if (verbose > 1) {
-	    dumpmsg(msg);
-	    fprintf(stderr, "\n");
-	}
-	fprintf(stderr, "waiting for query reply\n");
+    if (verbose > 2) {
+	dumpmsg(msg);
+	fprintf(stderr, "\n");
     }
+    if (verbose > 1)
+	fprintf(stderr, "waiting for query reply\n");
 
     len = dnstcp_recv(s, buffer, sizeof buffer);
     if (len <= 0) {
@@ -404,7 +406,7 @@ query_ns(int s, const char *domain, char ***list_ret)
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    if (verbose > 1) {
+    if (verbose > 2) {
 	dumpmsg(msg);
 	fprintf(stderr, "\n");
     }
@@ -415,7 +417,7 @@ query_ns(int s, const char *domain, char ***list_ret)
 	fprintf(stderr, "bad reply to query\n");
 	goto fail;
     }
-    if (verbose)
+    if (verbose > 1 || (verbose && rheader.rcode))
 	fprintf(stderr, "server response: %s\n",
 	    dns_rcode_name(rheader.rcode));
     if (rheader.rcode != DNS_NOERROR)
@@ -537,18 +539,17 @@ update(int s, struct verify_context *vctx,
 		sign, vctx);
     dns_wr_finish(msg);
 
-    if (verbose)
+    if (verbose > 1)
 	fprintf(stderr, "sending %s update...\n",
 		udata ? "authenticated" : "unauthenticated");
     dnstcp_sendmsg(s, msg);
 
-    if (verbose) {
-	if (verbose > 1) {
-	    dumpmsg(msg);
-	    fprintf(stderr, "\n");
-	}
-	fprintf(stderr, "waiting for update reply\n");
+    if (verbose > 2) {
+	dumpmsg(msg);
+	fprintf(stderr, "\n");
     }
+    if (verbose > 1) 
+	fprintf(stderr, "waiting for update reply\n");
 
     len = dnstcp_recv(s, buffer, sizeof buffer);
     if (len <= 0) {
@@ -557,7 +558,7 @@ update(int s, struct verify_context *vctx,
     }
     dns_msg_setbuf(msg, buffer, len);
 
-    if (verbose > 1) {
+    if (verbose > 2) {
 	dumpmsg(msg);
 	fprintf(stderr, "\n");
     }
@@ -567,12 +568,10 @@ update(int s, struct verify_context *vctx,
 	fprintf(stderr, "bad reply to update request\n");
 	goto fail;
     }
-    if (verbose)
+    if (verbose > 1)
 	fprintf(stderr, "server response: %s\n",
 	    dns_rcode_name(rheader.rcode));
     if (rheader.rcode != DNS_NOERROR) {
-	fprintf(stderr, "error: server failed to update: %s\n",
-	    dns_rcode_name(rheader.rcode));
 	rcode = rheader.rcode;
 	goto fail;
     }
@@ -582,7 +581,7 @@ update(int s, struct verify_context *vctx,
     if (vctx) {
 	dns_msg_setbuf(msg, buffer, len);
 	dns_tsig_verify(msg, verify, vctx);
-	if (verbose)
+	if (verbose > 1 || (verbose && rheader.rcode))
 	    fprintf(stderr, "server response verified\n");
     } 
 #endif
@@ -601,7 +600,7 @@ fail:
  */
 static int
 gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
-	const char *server, const char *fqdn, const char *domain,
+	const char *server, const char *fqdn, const char *server_spn,
 	uint16_t utype, uint16_t uclass, uint32_t uttl,
 	const void *udata, size_t udatalen, const char *auth_domain)
 {
@@ -622,14 +621,14 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     make_key_name(fqdn, key_name, sizeof key_name);
 
     /* The domain server's principal name */
-    if (domain)
-       snprintf(server_principal, sizeof server_principal,
-	    "dns/%s@%s", server, domain);
-    else
+    if (!server_spn) {
        snprintf(server_principal, sizeof server_principal,
 	    "dns/%s", server);
+       server_spn = server_principal;
+    }
+
     if (verbose)
-	fprintf(stderr, "target service: %s\n", server_principal);
+	fprintf(stderr, "target service: %s\n", server_spn);
 
     /* Perform the GSS rounds */
     gssctx = GSS_C_NO_CONTEXT;
@@ -639,7 +638,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
     outtok.value = NULL;
     for (;;) {
 	major = vas_gss_spnego_initiate(ctx, id, NULL, &gssctx,
-		server_principal,
+		server_spn,
 	       	GSS_C_REPLAY_FLAG | GSS_C_MUTUAL_FLAG | GSS_C_DELEG_FLAG |
 		GSS_C_SEQUENCE_FLAG | GSS_C_INTEG_FLAG,
 		VAS_GSS_SPNEGO_ENCODING_DER, intok.length ? &intok : NULL,
@@ -893,8 +892,8 @@ count_dots(const char *s)
 }
 
 /* Returns pointer to the parent domain part of a name */
-static char *
-parent_domain(char *d)
+static const char *
+parent_domain(const char *d)
 {
     for (; *d; d++)
 	if (*d == '.') {
@@ -922,13 +921,13 @@ int
 main(int argc, char **argv)
 {
     int ns, s;
-    char **servers = NULL, *server, **serverp;
+    char **server_list = NULL, *server, **serverp;
     char **user_servers = NULL, **host_nameservers;
     vas_ctx_t *vas_ctx = NULL;
     vas_err_t error;
-    char *domain = NULL;
+    char *server_spn = NULL;
     char *hostname = NULL;
-    char *spn = "host/";
+    char *client_spn = "host/";
     int ret;
     vas_id_t *local_id;
     unsigned char ipaddr[4];
@@ -955,13 +954,16 @@ main(int argc, char **argv)
     resconf_init();
 
     /* Argument processing */
-    while ((ch = getopt(argc, argv, "a:d:h:INo:rs:t:vV")) != -1)
+    while ((ch = getopt(argc, argv, "a:C:d:h:INo:rs:S:t:vV")) != -1)
 	switch (ch) {
 	case 'a':
 	    user_auth_domain = optarg;
 	    break;
+	case 'C':
+	    client_spn = optarg;
+	    break;
 	case 'd':
-	    domain = strdup(optarg);
+	    warnx("-d has been deprecated");
 	    break;
 	case 'h':
 	    hostname = optarg;
@@ -971,7 +973,7 @@ main(int argc, char **argv)
             ietf_compliant = 1;
 	    break;
 	case 'N':
-	    config_add("UpdateSecurityLevel", "256");
+	    config_add("UpdateSecurityLevel", STR(SECURITY_ONLY_UNSECURE));
 	    break;
 	case 'o':
 	    if (!config_opt(optarg)) {
@@ -980,11 +982,14 @@ main(int argc, char **argv)
 	    }
 	    break;
 	case 'r':
-	    config_add("RegisterReverseLookup", "1"); /* Always regsiter PTR */
+	    config_add("RegisterReverseLookup", "1");
 	    break;
 	case 's':
 	    list_free(user_servers);
 	    user_servers = list_from_string(optarg);
+	    break;
+	case 'S':
+	    server_spn = optarg;
 	    break;
 	case 't':
 	    config_add("RegistrationTtl", optarg);
@@ -1001,21 +1006,25 @@ main(int argc, char **argv)
 	    break;
 	}
 
+    /* Expect an IP address argument */
     if (!(optind < argc && my_inet_aton(argv[optind++], ipaddr, sizeof ipaddr)))
 	opterror = 1;
 
+    /* Expect no more arguments */
     if (optind != argc)
 	opterror = 1;
 
     if (opterror) {
 	fprintf(stderr, "usage: %s"
-			" [-d domain]"
+			" [-a auth-domain]"
+			" [-C client-spn]"
 			" [-h hostname]"
 			" [-I]"
 			" [-N]"
 			" [-o option=value]"
 			" [-r]"
 			" [-s nameserver]"
+			" [-S server-spn]"
 		        " [-t ttl]"
 	       		" [-v]"
 	       		" [-V]"
@@ -1023,7 +1032,15 @@ main(int argc, char **argv)
 	exit(2);
     }
 
-    ttl = config_get_int(optarg, 15 * 60);
+    if (verbose)
+	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
+
+    /*
+     * Sanity check the options 
+     */
+    ttl = config_get_int("RegistrationTtl", DEFAULT_TTL);
+    if (verbose)
+	fprintf(stderr, "ttl: %u\n", ttl);
 
     security_level = config_get_int("UpdateSecurityLevel", 
 	    SECURITY_UNSECURE_THEN_SECURE);
@@ -1033,10 +1050,12 @@ main(int argc, char **argv)
 	case SECURITY_UNSECURE_THEN_SECURE:
 	    break;
 	default:
-	    warnx("Bad UpdateSecurityLevel %d, using %d\n", security_level,
+	    warnx("Unknown UpdateSecurityLevel %d, using %d\n", security_level,
 		    SECURITY_ONLY_SECURE);
 	    security_level = SECURITY_ONLY_SECURE;
     }
+    if (verbose)
+	fprintf(stderr, "security_level: %d\n", security_level);
 
     register_reverse = config_get_int("RegisterReverseLookup", 
 	    REGISTER_PTR_ONLY_IF_A_SUCCEEDS);
@@ -1050,15 +1069,15 @@ main(int argc, char **argv)
 		    REGISTER_PTR_ONLY_IF_A_SUCCEEDS);
 	    register_reverse = REGISTER_PTR_ONLY_IF_A_SUCCEEDS;
     }
+    if (verbose)
+	fprintf(stderr, "register_reverse: %d\n", register_reverse);
 
     if (verbose) {
-	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
-	fprintf(stderr, "spn: %s\n", spn);
-	fprintf(stderr, "ttl: %u\n", ttl);
+	fprintf(stderr, "client_spn: %s\n", client_spn);
+	fprintf(stderr, "server_spn: %s\n", server_spn ? server_spn : "(auto)");
+	fprintf(stderr, "tsig_name:  %s\n", tsig_name);
 	fprintf(stderr, "ipaddr: %u.%u.%u.%u\n", 
 		ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
-	fprintf(stderr, "UpdateSecurityLevel = %d\n", security_level);
-	fprintf(stderr, "RegisterReverseLookup = %d\n", register_reverse);
     }
 
     /* Check policy for RegistrationEnabled == 0 */
@@ -1074,7 +1093,7 @@ main(int argc, char **argv)
     /* Try initializing GSS authentication */
     if (security_level == SECURITY_ONLY_UNSECURE)
 	vas_ctx = NULL;
-    else if (!gss_auth_init(&vas_ctx, &local_id, spn)) {
+    else if (!gss_auth_init(&vas_ctx, &local_id, client_spn)) {
 	if (security_level == SECURITY_ONLY_SECURE) 
 	    errx(1, "Unable to securely update");
 	warnx("Unable to securely update; reverting to unsecure-only");
@@ -1088,7 +1107,7 @@ main(int argc, char **argv)
 
     if (vas_ctx && !hostname)
 	/* Ask VAS for our fqdn hostname */
-	(void)gss_auth_init_fqdn(vas_ctx, local_id, spn, &hostname);
+	(void)gss_auth_init_fqdn(vas_ctx, local_id, client_spn, &hostname);
 
     if (!hostname) {
 	/* Ask the OS for our FQDN. */
@@ -1109,18 +1128,27 @@ main(int argc, char **argv)
 	if (count_dots(hostname) == 0) {
 	    if (verbose > 1)
 		fprintf(stderr, "hostname %s looks unqualified\n", hostname);
-	    domain_list = resconf_get("domain");
-	    if (!domain_list)
-		domain_list = resconf_get("search");
-	    if (domain_list && domain_list[0]) {
-		if (verbose)
-		    fprintf(stderr, "appending domain name %s\n", 
-			    domain_list[0]);
+	    if (user_auth_domain) {
+		/* Use the user supplied domain from the -a option */
 		snprintf(full_hostname, sizeof full_hostname, 
-			"%s.%s", hostname, domain_list[0]);
+			"%s.%s", hostname, user_auth_domain);
 		hostname = full_hostname;
+	    } else {
+		/* Use the first domain listed in resolv.conf's 
+		 * 'domain' or 'search' options */
+		domain_list = resconf_get("domain");
+		if (!domain_list)
+		    domain_list = resconf_get("search");
+		if (domain_list && domain_list[0]) {
+		    if (verbose)
+			fprintf(stderr, "appending domain name %s\n", 
+				domain_list[0]);
+		    snprintf(full_hostname, sizeof full_hostname, 
+			    "%s.%s", hostname, domain_list[0]);
+		    hostname = full_hostname;
+		}
+		resconf_free(domain_list);
 	    }
-	    resconf_free(domain_list);
 	}
 	hostname = strdup(hostname);
     }
@@ -1154,19 +1182,21 @@ main(int argc, char **argv)
     list_free(host_nameservers);
 
     /*
-     * which==0 --> Update A record
-     * which==1 --> Update PTR record
+     * Loop, first updating the A record, then updating the PTR record
      */
     a_registered = 0;
     for (updating_ptr = 0; updating_ptr <= 1; updating_ptr++) {
+
 	switch (updating_ptr) {
-	case 0:	/* Update A */
+	case 0:
+	    /* A record parameters */
 	    name = hostname;
 	    utype = DNS_TYPE_A;
 	    udata = ipaddr;
 	    udatalen = sizeof ipaddr;
 	    break;
-	case 1:	/* Update PTR */
+	case 1:
+	    /* Logic for whether or not we update PTRs */
 	    switch (register_reverse) {
 	    case REGISTER_PTR_NEVER:
 		continue;
@@ -1174,6 +1204,7 @@ main(int argc, char **argv)
 		if (!a_registered)
 		    continue;
 	    }
+	    /* PTR record parameters */
 	    name = reverse;
 	    utype = DNS_TYPE_PTR;
 	    udata = hostname;
@@ -1181,8 +1212,8 @@ main(int argc, char **argv)
 	    break;
 	}
 
-	if (verbose)
-	    fprintf(stderr, "registering %s %s\n", 
+	if (verbose > 1)
+	    fprintf(stderr, "starting attempt to register %s %s\n", 
 		    utype == DNS_TYPE_A ? "A" : "PTR", name);
 	
 
@@ -1190,18 +1221,18 @@ main(int argc, char **argv)
 	 * Step 2: Figure out which nameserver to update against
 	 */
 
-	/* The user may have supplied some with the -n option */
-	servers = user_servers;
+	/* The user may have supplied a list of nameservers with -n */
+	server_list = user_servers;
 	auth_domain = user_auth_domain;
 
-	if (!servers) {
-	    /* Perform an SOA query on the name we want to update. 
+	if (!server_list) {
+	    /* Perform an SOA query on the record name we want to update. 
 	     * The primary server from the SOA response becomes the 
 	     * first host we will try. */
 	    if (query_soa(ns, name, auth_domainbuf, sizeof auth_domainbuf,
 			auth_primary, sizeof auth_primary) == 0) 
 	    {
-		servers = list_from_single(auth_primary);
+		server_list = list_from_single(auth_primary);
 		/* Later we will use auth_domainbuf to find more servers */
 		extend_servers_on_fail = 1;
 		if (!auth_domain)
@@ -1212,30 +1243,30 @@ main(int argc, char **argv)
 	    }
 	}
 
-	/* If we still don't have a list of servers, ask VAS */
-	if (vas_ctx && !servers) {
+	/* If we still don't have a list of servers, ask VAS for DCs */
+	if (vas_ctx && !server_list) {
 	    char **vas_servers = NULL;
 	    error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
 		    &vas_servers);
 	    if (error) {
 		warnx("vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
-		servers = NULL;
+		server_list = NULL;
 	    } else {
-		servers = list_dup(vas_servers);
+		server_list = list_dup(vas_servers);
 		vas_info_servers_free(vas_ctx, vas_servers);
 	    }
 	}
 
 	/* Last resort: try all nameservers in resolv.conf */
-	if (!servers)
-	    servers = resconf_get("nameserver");
+	if (!server_list)
+	    server_list = resconf_get("nameserver");
 
-	if (!servers || !*servers)
-	    errx(1, "No nameservers?");
+	if (!server_list || !*server_list)
+	    errx(1, "Cannot determine nameservers to update against");
 
-	/* Use the immediate parent domain if unspecified */
 	if (!auth_domain) 
-	    auth_domain = parent_domain(name);
+	    /* Use the parent domain as a best guess for the auth domain */
+	    auth_domain = (char *)parent_domain(name);
 
 	if (verbose)
 	    fprintf(stderr, "auth_domain: %s\n", 
@@ -1243,7 +1274,7 @@ main(int argc, char **argv)
 
 	/* Check for non FQDNs and top-level domain names */
 	if (count_dots(auth_domain) < 1) {
-	    warnx("auth domain '%.255s' is too short", auth_domain);
+	    warnx("auth domain '%.255s' is top-level", auth_domain);
 	    if (config_get_int("UpdateTopLevelDomainZones", 0) == 0) {
 		if (verbose)
 		    warnx("Refusing to update top level domain zones\n");
@@ -1253,67 +1284,93 @@ main(int argc, char **argv)
 
 	/*
 	 * STEP 3: Try sending UPDATE requests to each of the servers
-	 * until something works.
+	 * in the server_list until something works.
 	 */
 
 	ret = -1;
-	for (serverp = servers; ret != 0; serverp++) {
+	for (serverp = server_list; ; serverp++) {
 	    if (!*serverp && extend_servers_on_fail) {
-		/* If we exhausted the server list from an SOA query
+		char **ns_list = NULL, **lp;
+		/* If we exhausted the server list obtained from an SOA query
 		 * then try adding more by performing an NS query on 
-		 * the SOA domain */
+		 * the authoritative domain itself */
+		extend_servers_on_fail = 0;
 		if (verbose)
 		    fprintf(stderr, "querying NS for %s\n", auth_domainbuf);
-		extend_servers_on_fail = 0;
-		list_free(servers);
-		servers = NULL;
-		if (query_ns(ns, auth_domainbuf, &servers) != 0)
+		if (query_ns(ns, auth_domainbuf, &ns_list) != 0)
 		    warnx("unable to get NS records for %s", auth_domainbuf);
-		serverp = servers;
+		for (lp = server_list; *lp; lp++)
+		    list_remove(ns_list, *lp);
+		list_free(server_list);
+		server_list = serverp = ns_list;
 	    }
-	    if (!serverp || !*serverp)
+	    if (!serverp || !*serverp) {
+		if (verbose)
+		    fprintf(stderr, "out of servers to try\n");
 		break;
-	    server = *serverp;
+	    }
 
+	    /* Connect to our next candidate nameserver */
+	    server = *serverp;
 	    if (verbose)
-		fprintf(stderr, "trying %s...\n", server);
+		fprintf(stderr, "trying nameserver %s...\n", server);
 	    s = dnstcp_connect(server);
 	    if (s == -1)
 		continue;
 
 	    /*
+	     * Loop for connecting unsecurely, then securely.
 	     * secure==0 --> Insecure update attempt
 	     * secure==1 --> Secure (GSSAPI) update attempt
 	     */
 	    for (secure = 0; secure <= 1; secure++) {
+
 		if (security_level == SECURITY_ONLY_SECURE && !secure)
 		    continue;
 		if (security_level == SECURITY_ONLY_UNSECURE && secure)
 		    continue;
 
+		if (verbose)
+		    fprintf(stderr, "attempting %s update %s %s\n", 
+			    secure ? "secure" : "unsecure",
+			    name,
+			    utype == DNS_TYPE_A ? "A" : "PTR");
+
 		if (secure) {
 		    ret = gss_update(vas_ctx, local_id, s, server, name, 
-			    domain, utype, DNS_CLASS_IN, ttl, udata, 
+			    server_spn, utype, DNS_CLASS_IN, ttl, udata, 
 			    udatalen, auth_domain);
 		} else {
 		    ret = update(s, NULL, name, utype, DNS_CLASS_IN,
 			    ttl, udata, udatalen, auth_domain);
 		}
-		/* Break out of the loop when we succeed one */
-		if (ret == 0) {
+		if (ret == 0) { /* Success! */
 		    /* Remember that we updated the A record */
 		    if (!updating_ptr)
 			a_registered = 1;
+		    /* Break out of the secure loop when done */
 		    break;
-		}
+		} 
+		if (ret > 0)
+		    fprintf(stderr, "%s update %s: %s\n", server,
+			    utype == DNS_TYPE_A ? "A" : "PTR",
+			    dns_rcode_name(ret));
 	    }
 	    dnstcp_close(&s);
+
+	    if (ret == 0)
+		/* Break out of the server list after a success */
+		break;
 	}
 	if (verbose)
-	    fprintf(stderr, "update of %s %s\n",
-		    name, (ret == 0) ? "succeeded" : "failed");
-	list_free(servers);
+	    fprintf(stderr, "update of %s %s %s\n",
+		    name, 
+		    utype == DNS_TYPE_A ? "A" : "PTR",
+		    (ret == 0) ? "succeeded" : "failed");
+	list_free(server_list);
     }
+
+    dnstcp_close(&ns);
 
     if (vas_ctx)
         vas_ctx_free(vas_ctx);
