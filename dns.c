@@ -500,18 +500,39 @@ dns_wr_name_canon(struct dns_msg *msg, const char *name)
 }
 
 /* Increments the arcount, in situ */
-void
-dns_wr_inc_arcount(struct dns_msg *msg)
+static void
+inc_count(struct dns_msg *msg, int offset)
 {
-    uint16_t arcount;
+    uint16_t count;
     unsigned char *p;
 
     assert(msg->pos >= 12);	/* header must be present */
-    p = (unsigned char *)msg->data + 10;
-    arcount = p[0] << 8 | p[1];
-    arcount++;
-    p[0] = (arcount >> 8) & 0xff;
-    p[1] = arcount & 0xff;
+    p = (unsigned char *)msg->data + offset;
+    count = p[0] << 8 | p[1];
+    count++;
+    p[0] = (count >> 8) & 0xff;
+    p[1] = count & 0xff;
+}
+
+/* Increments the ancount, in situ */
+void
+dns_wr_inc_ancount(struct dns_msg *msg)
+{
+    inc_count(msg, 6);
+}
+
+/* Increments the nscount, in situ */
+void
+dns_wr_inc_nscount(struct dns_msg *msg)
+{
+    inc_count(msg, 8);
+}
+
+/* Increments the arcount, in situ */
+void
+dns_wr_inc_arcount(struct dns_msg *msg)
+{
+    inc_count(msg, 10);
 }
 
 /* Decrements the arcount, in situ. UNCHECKED */

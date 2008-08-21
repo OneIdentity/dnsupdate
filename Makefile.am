@@ -66,4 +66,12 @@ check_PROGRAMS+=	list-t
 list_t_SOURCES=		list-t.c list.c list.h
 list_t_CFLAGS =		-ggdb
 
+noinst_PROGRAMS=	server-t
+server_t_SOURCES=	server-t.c
+server_t_SOURCES+=	common.h 
+server_t_SOURCES+=	dns.c dns.h
+server_t_SOURCES+=	dnstcp.c dnstcp.h
+server_t_SOURCES+=	dnsdebug.c dnsdebug.h
+server_t_LDADD=		$(LIBOBJS)
+
 TESTS=			$(check_PROGRAMS)

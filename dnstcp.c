@@ -242,8 +242,14 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
     int len, msglen;
     int pos;
 
+    if (verbose > 3)
+	fprintf(stderr, "dnstcp_recv s %d buf %p bufsz %d\n", 
+		s, buf, (int)bufsz);
+
     for (pos = 0; pos < sizeof b; pos += len) {
 	len = read(s, b + pos, sizeof b - pos);
+	if (verbose > 3)
+	    fprintf(stderr, "  header read -> %d\n", len);
 	if (len < 0) {
 	    warn("read");
 	    return -1;
@@ -257,6 +263,8 @@ dnstcp_recv(int s, void *buf, size_t bufsz)
 		   (int)sizeof b);
     }
 
+    if (verbose > 3)
+	fprintf(stderr, "  header %02x %02x\n", b[0], b[1]);
 
     msglen = (b[0] << 8) | b[1];
     if (msglen > bufsz) {

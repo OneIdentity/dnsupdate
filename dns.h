@@ -55,16 +55,18 @@ struct dns_header {
 #define DNS_MAXNAME	256	/* max size of an uncompressed domain name */
 				/* string including nul (HOST_NAME_MAX+1) */
 
-/* A resource record */
+/* A resource record head */
 struct dns_rr {
      char 	name[DNS_MAXNAME];	/* uncompressed */
      uint16_t	type;
      uint16_t	class_;
      int32_t	ttl;		/* not present in questions */
+     /* All RR heads are followed by a 16-bit data length then the data */
 };
 
 #define DNS_TYPE_A	1
 #define DNS_TYPE_NS	2
+#define DNS_TYPE_CNAME	5
 #define DNS_TYPE_SOA	6
 #define DNS_TYPE_NULL	10
 #define DNS_TYPE_PTR	12
@@ -187,6 +189,10 @@ void   dns_wr_finish(struct dns_msg *msg);
 void   dns_wr_inc_arcount(struct dns_msg *msg);
 /* Convenience function to decrement the additional record count */
 void   dns_rd_dec_arcount(struct dns_msg *msg);
+/* Convenience function to increment the answer record count */
+void   dns_wr_inc_ancount(struct dns_msg *msg);
+/* Convenience function to increment the authoritative ns record count */
+void   dns_wr_inc_nscount(struct dns_msg *msg);
 
 /* Returns an error code as a string */
 const char *dns_rcode_name(uint16_t rcode);
