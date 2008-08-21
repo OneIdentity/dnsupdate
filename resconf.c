@@ -27,12 +27,22 @@ void
 resconf_init()
 {
     char *localdomain;
+    const char *resconf_path;
 
-    load_resolv_file("/etc/resolv.conf");
+    resconf_path = getenv("DNS_RESOLV_CONF");
+    if (resconf_path && *resconf_path)
+	fprintf(stderr, "using DNS_RESOLV_CONF %s\n", resconf_path);
+    else
+	resconf_path = "/etc/resolv.conf";
+    load_resolv_file(resconf_path);
 
     /* The environment variable LOCALDOMAIN overrides search */
-    if ((localdomain = getenv("LOCALDOMAIN")) != NULL)
+    localdomain = getenv("LOCALDOMAIN");
+    if (localdomain && *localdomain) {
+	if (verbose)
+	    fprintf(stderr, "using LOCALDOMAIN %s\n", localdomain);
 	resconf_set("search", localdomain);
+    }
 }
 
 static void
