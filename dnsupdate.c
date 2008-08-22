@@ -480,6 +480,7 @@ update(int s, struct verify_context *vctx,
     char buffer[32768];
     int len;
     int rcode = -1;
+    int deleting = (uttl == 0);
 
     memset(&header, 0, sizeof header);
     header.id = unique_id();
@@ -506,14 +507,15 @@ update(int s, struct verify_context *vctx,
     delrr.type = utype;
     delrr.class_ = DNS_CLASS_ANY;
 
-    if (udata) {
+    if (!deleting) {
 	header.nscount++;
 	memset(&addrr, 0, sizeof addrr);	/* Add specific class */
 	dns_rr_set_name(&addrr, fqdn);
 	addrr.type = utype;
 	addrr.class_ = uclass;
 	addrr.ttl = uttl;
-    }
+    } else if (verbose > 1)
+	fprintf(stderr, "update is a delete request: data ignored\n");
 
     msg = dns_msg_new();
     dns_msg_setbuf(msg, buffer, sizeof buffer);
@@ -523,7 +525,7 @@ update(int s, struct verify_context *vctx,
     dns_wr_data(msg, NULL, 0);
     dns_wr_rr_head(msg, &delrr);
     dns_wr_data(msg, NULL, 0);
-    if (udata) {
+    if (!deleting) {
 	dns_wr_rr_head(msg, &addrr);
 	if (udatalen == -1) {	/* If udatalen == -1, then its a domain name */
 	    uint16_t mark;
@@ -541,7 +543,7 @@ update(int s, struct verify_context *vctx,
 
     if (verbose > 1)
 	fprintf(stderr, "sending %s update...\n",
-		udata ? "authenticated" : "unauthenticated");
+		vctx ? "secure" : "unsecure");
     dnstcp_sendmsg(s, msg);
 
     if (verbose > 2) {
@@ -1351,8 +1353,10 @@ main(int argc, char **argv)
 		    /* Break out of the secure loop when done */
 		    break;
 		} 
-		if (ret > 0)
-		    fprintf(stderr, "%s update %s: %s\n", server,
+		if (ret > 0 && (verbose ||
+			 security_level == SECURITY_ONLY_UNSECURE || secure))
+		    fprintf(stderr, "%s %s update %s: %s\n", server,
+			    secure ? "secure" : "unsecure",
 			    utype == DNS_TYPE_A ? "A" : "PTR",
 			    dns_rcode_name(ret));
 	    }
