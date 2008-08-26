@@ -261,6 +261,9 @@ wr_response(struct dns_msg *rmsg, struct dns_msg *qmsg, const char *pattern)
 	}
 	p++;
 
+	if (*p == ':' || !*p)	/* empty section */
+	    continue;
+
 	if (verbose > 2)
 	    fprintf(stderr, "   section %d\n", section);
 
@@ -802,14 +805,17 @@ main(int argc, char **argv)
 	if (verbose)
 	    dumpmsg(&inmsg);
 	if (!match_query(&inmsg, argv[optind])) {
-	    fprintf(stderr, "received query failed to match arg %d\n", optind);
+	    fprintf(stderr, "request failed to match '%s' (arg %d)\n", 
+		    argv[optind], optind);
 	    exit(1);
 	}
+	fprintf(stderr, "request:  '%s'\n", argv[optind]);
 	/* Rewind the input message */
 	dns_msg_setbuf(&inmsg, inbuf, inlen);
 	/* Build the output message */
 	dns_msg_setbuf(&outmsg, outbuf, sizeof outbuf);
 	wr_response(&outmsg, &inmsg, argv[optind + 1]);
+	fprintf(stderr, "response: '%s'\n", argv[optind + 1]);
 	dns_wr_finish(&outmsg);
 	if (verbose)
 	    dumpmsg(&outmsg);
