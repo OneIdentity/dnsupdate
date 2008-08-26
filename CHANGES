@@ -1,4 +1,5 @@
 1.3.0.?
+    - use syslog as daemon facility
     - bug 570: -t0 wasn't deleting records
     - use configuration file for options similar to Microsoft's DNS client
     - follow NS records when primary SOA update fails

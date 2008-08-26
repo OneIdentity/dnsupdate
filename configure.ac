@@ -17,7 +17,7 @@ AC_C_CONST
 AC_HEADER_STDC
 AC_HEADER_TIME
 AC_CHECK_HEADERS([netdb.h unistd.h sys/socket.h errno.h netinet/in.h fcntl.h])
-AC_CHECK_HEADERS([signal.h])
+AC_CHECK_HEADERS([signal.h syslog.h])
 
 AC_PATH_PROG([VASCONFIG], [vas-config], [no], [/opt/quest/bin:$PATH])
 if test x"$VASCONFIG" = x"no"; then
@@ -26,9 +26,9 @@ fi
 AC_SUBST([VASCONFIG])
 
 AC_CHECK_FUNC([getaddrinfo])
+AC_CHECK_FUNC([vsyslog])
 AC_CHECK_FUNC([getopt], [], [AC_LIBOBJ([getopt])])
-AC_CHECK_FUNCS([err errx warn warnx], [], [AC_LIBOBJ([err])
-break])
+dnl AC_CHECK_FUNCS([err errx warn warnx], [], [AC_LIBOBJ([err]) ; break])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_FUNC_FORK

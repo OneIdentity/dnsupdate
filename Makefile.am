@@ -20,12 +20,13 @@ dnsupdate_SOURCES+=	conf.c conf.h
 dnsupdate_SOURCES+=	stream.c stream.h
 dnsupdate_SOURCES+=	resconf.c resconf.h
 dnsupdate_SOURCES+=	list.c list.h
+dnsupdate_SOURCES+=	err.c err.h
 dnsupdate_LDADD=	$(LIBOBJS)
 dnsupdate_CFLAGS=	$(VAS_CFLAGS)
 dnsupdate_LDFLAGS=	$(VAS_LIBS)
 dnsupdate_CPPFLAGS=	-DPATH_SYSCONFDIR=\"$(sysconfdir)\"
 
-EXTRA_DIST=	$(man_MANS) err.h \
+EXTRA_DIST=	$(man_MANS) \
 		dnsupdate-install-hooks.in dnsupdate.pp pp
 CLEAN_FILES= 	dnsupdate-install-hooks
 
@@ -70,6 +71,7 @@ noinst_PROGRAMS=	server-t
 server_t_SOURCES=	server-t.c
 server_t_SOURCES+=	common.h 
 server_t_SOURCES+=	dns.c dns.h
+server_t_SOURCES+=	err.c err.h
 server_t_SOURCES+=	dnstcp.c dnstcp.h
 server_t_SOURCES+=	dnsdebug.c dnsdebug.h
 server_t_LDADD=		$(LIBOBJS)

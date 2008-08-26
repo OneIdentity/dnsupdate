@@ -951,6 +951,8 @@ main(int argc, char **argv)
     char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
     char **domain_list;
 
+    err_enable_syslog(1);
+
     /* Load default configuration */
     config_load(PATH_SYSCONFDIR "/dnsupdate.conf");
     resconf_init();
