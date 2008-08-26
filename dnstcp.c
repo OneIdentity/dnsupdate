@@ -145,10 +145,18 @@ debug_connect(const char *wrapper, const char *host)
 	    fprintf(stderr, "starting wrapper pid %d: %s %s\n", 
 		    getpid(), wrapper, host);
 	close(sp[0]);
-	if (dup2(sp[1], 0) < 0)
-	    warn("dup2 0");
-	if (dup2(sp[1], 1) < 0)
-	    warn("dup2 1");
+	if (sp[1] != 0) {
+	    if (close(0) < 0)
+		warn("close 0");
+	    if (dup2(sp[1], 0) < 0)
+		warn("dup2 0");
+	}
+	if (sp[1] != 1) {
+	    if (close(1) < 0)
+		warn("close 1");
+	    if (dup2(sp[1], 1) < 0)
+		warn("dup2 1");
+	}
 	if (sp[1] != 0 && sp[1] != 1)
 	    close(sp[1]);
 	execlp(wrapper, wrapper, host, NULL);
