@@ -29,6 +29,7 @@ dnsupdate_CPPFLAGS=	-DPATH_SYSCONFDIR=\"$(sysconfdir)\"
 EXTRA_DIST=	$(man_MANS) \
 		dnsupdate-install-hooks.in dnsupdate.pp pp
 CLEAN_FILES= 	dnsupdate-install-hooks
+DISTCLEANFILES = $(PP)
 
 SUBST=	sed -e 's,[@]datadir[@],$(datadir),g' \
 	    -e 's,[@]sbindir[@],$(sbindir),g'
@@ -77,3 +78,18 @@ server_t_SOURCES+=	dnsdebug.c dnsdebug.h
 server_t_LDADD=		$(LIBOBJS)
 
 TESTS=			$(check_PROGRAMS)
+
+POLYPKGFILE=/data/rc/pub/rc/polypkg/pp
+POLYPKGURI=http://rc.quest.com/pub/rc/polypkg/pp
+
+$(PP):
+	if [ -r "$(POLYPKGFILE)" ]; then \
+	    ln -s $(POLYPKGFILE) $@; \
+	elif which wget >/dev/null 2>&1; then \
+	    wget -O $@ "$(POLYPKGURI)"; \
+	elif which curl >/dev/null 2>&1; then \
+	    curl -o $@ "$(POLYPKGURI)"; \
+	else \
+	    echo "Cannot figure out how to get polypkg"; \
+	    exit 1; \
+	fi
