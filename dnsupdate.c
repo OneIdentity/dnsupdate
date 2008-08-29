@@ -646,7 +646,7 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 		VAS_GSS_SPNEGO_ENCODING_DER, intok.length ? &intok : NULL,
 		&outtok);
 	if (GSS_ERROR(major)) {
-	    warn("vas_gss_spnego_initiate: %s", vas_err_get_string(ctx, 1));
+	    warnx("vas_gss_spnego_initiate: %s", vas_err_get_string(ctx, 1));
 	    goto fail;
 	}
 	assert(major == GSS_S_CONTINUE_NEEDED || major == GSS_S_COMPLETE);
