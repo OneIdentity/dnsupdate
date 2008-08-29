@@ -28,7 +28,7 @@ dnsupdate_CPPFLAGS=	-DPATH_SYSCONFDIR=\"$(sysconfdir)\"
 
 EXTRA_DIST=	$(man_MANS) \
 		dnsupdate-install-hooks.in dnsupdate.pp pp
-CLEAN_FILES= 	dnsupdate-install-hooks
+CLEANFILES= 	dnsupdate-install-hooks
 DISTCLEANFILES = $(PP)
 
 SUBST=	sed -e 's,[@]datadir[@],$(datadir),g' \
