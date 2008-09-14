@@ -21,8 +21,9 @@ as a computer object, and updates its IP address.
 .PP
 The
 .B dnsupdate
-utility should be run whenever the primary interface's IP address is configured
-(e.g. from a DHCP hook).
+utility should be run whenever the primary interface's IP address is configured.
+This is normally arranged by
+dnsupdate-install-hooks(8).
 .SS OPTIONS
 .TP
 .RI \-a\  auth-domain
@@ -150,6 +151,6 @@ utility exits with status 0 if the update for the A record succeeded.
 .SH "SEE ALSO"
 vastool(1),
 dnsupdate-install-hooks(8),
-.I http://rc.quest.com/topics/ddns/
+.I \%http://rc.quest.com/topics/ddns/
 .SH AUTHORS
 David Leonard, Quest Software, Inc.
