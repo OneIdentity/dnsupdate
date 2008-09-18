@@ -1018,6 +1018,14 @@ main(int argc, char **argv)
     if (optind != argc)
 	opterror = 1;
 
+    if (verbose > 1) {
+	int i;
+	fprintf(stderr, "command line:");
+	for (i = 0; i < argc; i++)
+	    fprintf(stderr, " %s", argv[i]);
+	fprintf(stderr, "\n");
+    }
+
     if (opterror) {
 	fprintf(stderr, "usage: %s"
 			" [-a auth-domain]"

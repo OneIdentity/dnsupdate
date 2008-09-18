@@ -22,7 +22,7 @@ struct desc {
 static const char *desc_lookup(const struct desc *desc, uint16_t value);
 static void dumprr_part(const struct dns_rr *rr);
 static void dumpheader(const struct dns_header *hdr);
-static void dumpquestion(const struct dns_rr *question);
+static void dumpquestion(const struct dns_rr *question, const char *section);
 
 
 static struct desc opcode_desc[] = {
@@ -249,9 +249,9 @@ dumprr(const struct dns_rr *rr, const char *name)
 }
 
 static void
-dumpquestion(const struct dns_rr *question)
+dumpquestion(const struct dns_rr *question, const char *section)
 {
-    fprintf(stderr, "    question:\n");
+    fprintf(stderr, "    %s:\n", section);
     dumprr_part(question);
 }
 
@@ -264,7 +264,13 @@ dumpmsg(struct dns_msg *msg)
     struct dns_header header;
     int i;
     uint16_t len;
-    const char *section;
+    int section;
+    const char *section_names_query[] = {
+	"question", "answer", "authority", "additional" };
+    const char *section_names_update[] = {
+	"zone", "prerequisite", "update", "additional" };
+    const char **section_names;
+    const char *section_name;
 
     void *bufsave;
     size_t bufszsave;
@@ -278,16 +284,28 @@ dumpmsg(struct dns_msg *msg)
 
     dns_rd_header(msg, &header);
     dumpheader(&header);
+    section_names = header.opcode == DNS_OP_UPDATE 
+	? section_names_update 
+	: section_names_query;
+
+    section_name = section_names[0];
     for (i = 0; i < header.qdcount; i++) {
 	dns_rd_question(msg, &rr);
-	dumpquestion(&rr);
+	dumpquestion(&rr, section_name);
     }
 
     for (;;) {
-	if (header.ancount) { section = "answer"; header.ancount--; }
-	else if (header.nscount) { section = "authority"; header.nscount--; }
-	else if (header.arcount) { section = "additional"; header.arcount--; }
-	else break;
+	if (header.ancount) { 
+	    section_name = section_names[1];
+	    header.ancount--; 
+	} else if (header.nscount) {
+	    section_name = section_names[2];
+	    header.nscount--; 
+	} else if (header.arcount) {
+	    section_name = section_names[3];
+	    header.arcount--;
+       	} else 
+	    break;
 
 	dns_rd_rr_head(msg, &rr);
 	dumprr(&rr, section);
