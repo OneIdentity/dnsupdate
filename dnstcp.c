@@ -126,7 +126,7 @@ debug_connect(const char *wrapper, const char *host)
 	return -1;
     }
 
-    if (signal(SIGCHLD, SIG_IGN) < 0)
+    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR)
 	warn("signal SIGCHLD");
 
     switch (fork()) {
