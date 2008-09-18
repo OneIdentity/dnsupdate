@@ -304,7 +304,7 @@ dumpmsg(struct dns_msg *msg)
 	} else if (header.arcount) {
 	    section_name = section_names[3];
 	    header.arcount--;
-       	} else 
+	} else 
 	    break;
 
 	dns_rd_rr_head(msg, &rr);
