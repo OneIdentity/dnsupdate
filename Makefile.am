@@ -32,6 +32,7 @@ CLEANFILES= 	dnsupdate-install-hooks
 DISTCLEANFILES = $(PP)
 
 SUBST=	sed -e 's,[@]datadir[@],$(datadir),g' \
+	    -e 's,[@]sysconfdir[@],$(sysconfdir),g' \
 	    -e 's,[@]sbindir[@],$(sbindir),g'
 
 dnsupdate-install-hooks: $(srcdir)/dnsupdate-install-hooks.in
@@ -53,6 +54,7 @@ package: dnsupdate.pp $(PP)
 	       libexecdir=$(libexecdir) \
 	       datadir=$(datadir) \
 	       man8dir=$(man8dir) \
+	       MachineXlatorsdir=$(MachineXlatorsdir) \
 	       WITH_IPWATCHD=$(WITH_IPWATCHD)
 
 SUBDIRS=
@@ -93,3 +95,12 @@ $(PP):
 	    echo "Cannot figure out how to get polypkg"; \
 	    exit 1; \
 	fi
+
+MachineXlatorsdir = /opt/quest/libexec/vgp/xlators/Machine
+MachineXlators_SCRIPTS = quest-dnsupdate-xlator
+quest-dnsupdate-xlator: xlator.sh.in
+	$(SUBST) <$(srcdir)/xlator.sh.in > $@
+	chmod +x $@
+EXTRA_DIST += xlator.sh.in
+CLEANFILES += quest-dnsupdate-xlator
+

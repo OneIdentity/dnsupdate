@@ -1,0 +1,57 @@
+#!/bin/sh
+# (c) 2008, Quest Software Inc. All rights reserved.
+#
+# A VGP xlator
+# install as /opt/quest/libexec/vgp/xlators/Machine/quest-dnsupdate
+
+SAVEDIR=/var/opt/quest/vgp/exts/admext/quest-dnsupdate
+CONF="@sysconfdir@/dnsupdate.conf"
+CONFTMP=/tmp/.$$dnsupdate.conf.tmp
+
+case $1 in
+    info)
+	echo "quest-dnsupdate xlator"
+	;;
+    keys)
+	cat <<-'.'
+		Software\Policies\Microsoft\Windows NT\DNSClient
+.
+	;;
+    init)
+	if test -r $CONF; then
+	    # Remove lines in the config file previously from this translator
+	    sed -e '/^#--VGP BEGIN--#/,/^#--VGP END--#/d' < $CONF > $CONFTMP
+	    if test -s $CONFTMP; then
+		cat $CONFTMP > $CONF
+	    else
+		rm -f $CONF
+	    fi
+	fi
+	rm -f $CONFTMP
+	;;
+    "")
+	# Append all DNSClient keys to the dnsupdate.conf file
+	: > $CONFTMP.2
+	IFS=\;
+	while read REG_KEY VALUE_NAME DATA_TYPE VALUE
+	do
+	    case $VALUE_NAME:$DATA_TYPE in
+		*:*) echo "$VALUE_NAME = $VALUE" >> $CONFTMP.2;;
+	    esac
+	done
+	if test -s $CONFTMP.2; then 
+	    { test -s $CONF && cat $CONF
+	      echo '#--VGP BEGIN--#'
+	      cat $CONFTMP.2
+	      echo '#--VGP END--#'
+	    } > $CONFTMP.3
+	    cat $CONFTMP.3 > $CONF
+	fi
+#	rm -f $CONFTMP.2 $CONFTMP.3
+	;;
+    *)
+	echo "unknown argument '$1'" >&2
+	exit 1
+	;;
+fi
+:

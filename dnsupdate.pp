@@ -11,6 +11,7 @@
   $libexecdir/dnsupdate-install-hooks
   $man8dir/dnsupdate.8
   $man8dir/dnsupdate-install-hooks.8
+  $MachineXlatorsdir/quest-dnsupdate-xlator
 
 %files [macos]
   $sbindir/ipwatchd
