@@ -101,6 +101,9 @@ MachineXlators_SCRIPTS = quest-dnsupdate-xlator
 quest-dnsupdate-xlator: xlator.sh.in
 	$(SUBST) <$(srcdir)/xlator.sh.in > $@
 	chmod +x $@
-EXTRA_DIST += xlator.sh.in
-CLEANFILES += quest-dnsupdate-xlator
-
+xlator-t: xlator-t.sh
+	cat $(srcdir)/xlator-t.sh > $@
+	chmod +x $@
+check_PROGRAMS += xlator-t
+EXTRA_DIST += xlator.sh.in xlator-t.sh
+CLEANFILES += quest-dnsupdate-xlator xlator-t

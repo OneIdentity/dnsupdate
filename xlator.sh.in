@@ -8,9 +8,25 @@ SAVEDIR=/var/opt/quest/vgp/exts/admext/quest-dnsupdate
 CONF="@sysconfdir@/dnsupdate.conf"
 CONFTMP=/tmp/.$$dnsupdate.conf.tmp
 
+#-- When run with -test flag, write to /tmp
+case $1 in
+    -test)
+	shift
+	SAVEDIR=/tmp/savedir
+	CONF=/tmp/dnsupdate.conf
+	mkdir -p $SAVEDIR
+	;;
+esac
+
+
 case $1 in
     info)
-	echo "quest-dnsupdate xlator"
+	cat <<-.
+		INFO: $0
+
+		This translator configures quest-dnsupdate in accordance with
+		the policies defined for Microsoft DNS Client.
+.
 	;;
     keys)
 	cat <<-'.'
@@ -42,7 +58,7 @@ case $1 in
 	if test -s $CONFTMP.2; then 
 	    { test -s $CONF && cat $CONF
 	      echo '#--VGP BEGIN--#'
-	      cat $CONFTMP.2
+	      sort < $CONFTMP.2
 	      echo '#--VGP END--#'
 	    } > $CONFTMP.3
 	    cat $CONFTMP.3 > $CONF
@@ -53,5 +69,5 @@ case $1 in
 	echo "unknown argument '$1'" >&2
 	exit 1
 	;;
-fi
+esac
 :
