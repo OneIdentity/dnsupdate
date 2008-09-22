@@ -76,6 +76,7 @@ struct dns_rr {
 #define DNS_TYPE_ANY	255	/* only valid in queries/matching */
 
 #define DNS_CLASS_IN	1
+#define DNS_CLASS_NONE	254
 #define DNS_CLASS_ANY	255
 
 /* A read/write message structure */
@@ -193,6 +194,8 @@ void   dns_rd_dec_arcount(struct dns_msg *msg);
 void   dns_wr_inc_ancount(struct dns_msg *msg);
 /* Convenience function to increment the authoritative ns record count */
 void   dns_wr_inc_nscount(struct dns_msg *msg);
+/* Convenience function to increment the question record count */
+void   dns_wr_inc_qdcount(struct dns_msg *msg);
 
 /* Returns an error code as a string */
 const char *dns_rcode_name(uint16_t rcode);

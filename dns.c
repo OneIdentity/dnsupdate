@@ -507,6 +507,8 @@ inc_count(struct dns_msg *msg, int offset)
     unsigned char *p;
 
     assert(msg->pos >= 12);	/* header must be present */
+    assert(offset < 12);	/* offset must be inheader */
+    assert((offset & 1) == 0);	/* offset must be 16-bit aligned */
     p = (unsigned char *)msg->data + offset;
     count = p[0] << 8 | p[1];
     count++;
@@ -514,25 +516,34 @@ inc_count(struct dns_msg *msg, int offset)
     p[1] = count & 0xff;
 }
 
+#define offsetof(T,field) ((int)&((T *)0)->field)
+
+/* Increments the qdcount, in situ */
+void
+dns_wr_inc_qdcount(struct dns_msg *msg)
+{
+    inc_count(msg, offsetof(struct dns_header, qdcount));
+}
+
 /* Increments the ancount, in situ */
 void
 dns_wr_inc_ancount(struct dns_msg *msg)
 {
-    inc_count(msg, 6);
+    inc_count(msg, offsetof(struct dns_header, ancount));
 }
 
 /* Increments the nscount, in situ */
 void
 dns_wr_inc_nscount(struct dns_msg *msg)
 {
-    inc_count(msg, 8);
+    inc_count(msg, offsetof(struct dns_header, nscount));
 }
 
 /* Increments the arcount, in situ */
 void
 dns_wr_inc_arcount(struct dns_msg *msg)
 {
-    inc_count(msg, 10);
+    inc_count(msg, offsetof(struct dns_header, arcount));
 }
 
 /* Decrements the arcount, in situ. UNCHECKED */
@@ -542,7 +553,7 @@ dns_rd_dec_arcount(struct dns_msg *msg)
     uint16_t arcount;
     unsigned char *p;
 
-    p = (unsigned char *)msg->data + 10;
+    p = (unsigned char *)&(((struct dns_header *)msg->data)->arcount);
     arcount = p[0] << 8 | p[1];
     arcount--;
     p[0] = (arcount >> 8) & 0xff;
