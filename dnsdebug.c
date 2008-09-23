@@ -264,7 +264,6 @@ dumpmsg(struct dns_msg *msg)
     struct dns_header header;
     int i;
     uint16_t len;
-    int section;
     const char *section_names_query[] = {
 	"question", "answer", "authority", "additional" };
     const char *section_names_update[] = {
@@ -308,7 +307,7 @@ dumpmsg(struct dns_msg *msg)
 	    break;
 
 	dns_rd_rr_head(msg, &rr);
-	dumprr(&rr, section);
+	dumprr(&rr, section_name);
 	if (rr.type == 250) {
 	    uint16_t timehi;
 	    uint32_t timelo;
