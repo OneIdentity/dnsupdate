@@ -516,7 +516,9 @@ inc_count(struct dns_msg *msg, int offset)
     p[1] = count & 0xff;
 }
 
-#define offsetof(T,field) ((int)&((T *)0)->field)
+#ifndef offsetof
+# define offsetof(T, field) ((int)&((T *)0)->field)
+#endif
 
 /* Increments the qdcount, in situ */
 void
