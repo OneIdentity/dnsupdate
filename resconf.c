@@ -88,7 +88,8 @@ load_resolv_file(const char *path)
 	    oldlen = arg.len;
 	    stream_until(&stream, WHITESPACE ENDOFLINE, &arg);
 	    if (oldlen == arg.len) {			/* no more words */
-		arg.len--;				/* kill last space */
+		if (arg.len)
+		    arg.len--;				/* kill last space */
 		break;
 	    }
 	}
