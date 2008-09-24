@@ -10,6 +10,7 @@
 #include "err.h"
 #include "dns.h"
 #include "dnstcp.h"
+#include <sys/un.h>
 
 /*
  * DNS over TCP
@@ -113,11 +114,53 @@ tcp_connect(const char *host, const char *service)
 
 #endif /* ! HAVE_GETADDRINFO */
 
+static int
+unix_connect(const char *local)
+{
+    int s;
+    struct sockaddr_un sun;
+
+    s = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (s < 0) {
+	warn("socket");
+	return -1;
+    }
+    memset(&sun, 0, sizeof sun);
+    sun.sun_family = AF_UNIX;
+    snprintf(sun.sun_path, sizeof sun.sun_path, "%s", local);
+    if (verbose > 2)
+	fprintf(stderr, "connecting to unix socket %s\n", sun.sun_path);
+    if (connect(s, (struct sockaddr *)&sun, sizeof sun) < 0) {
+	warn("connect");
+	close(s);
+	return -1;
+    }
+    return s;
+}
+
+/*
+ * Connects to a local domain address, and sends the intended hostname
+ * as a string preceded by a 16-bit length
+ */
+static int
+debug_connect_unix(const char *local, const char *host)
+{
+    int s;
+
+    if ((s = unix_connect(local)) < 0)
+	return -1;
+
+    /* Write the target hostname preceded by a 16-bit length */
+    dnstcp_send(s, host, strlen(host));
+
+    return s;
+}
+
 /*
  * Forks a wrapper program, setting up a TCP-like socket for communication
  */
 static int
-debug_connect(const char *wrapper, const char *host)
+debug_connect_exec(const char *wrapper, const char *host)
 {
     int sp[2];
 
@@ -166,6 +209,18 @@ debug_connect(const char *wrapper, const char *host)
     }
 }
 
+static struct {
+    const char *label;
+    int (*connect)(const char *where, const char *host);
+} debug_intercepts[] = {
+    { "unix:", debug_connect_unix },
+    { "exec:", debug_connect_exec }
+};
+
+#ifndef lengthof
+# define lengthof(a) (sizeof a / sizeof a[0])
+#endif
+
 /* 
  * Connects to a DNS server using TCP. 
  * Returns a socket decsriptor or -1 on error.
@@ -173,11 +228,20 @@ debug_connect(const char *wrapper, const char *host)
 int
 dnstcp_connect(const char *host)
 {
-    char *debugconnect;
+    char *intercept;
 
-    debugconnect = getenv("DNS_CONNECT_WRAPPER");
-    if (debugconnect && *debugconnect)
-	return debug_connect(debugconnect, host);
+    intercept = getenv("DNSTCP_CONNECT_INTERCEPT");
+    if (intercept && *intercept) {
+	int i;
+	for (i = 0; i < lengthof(debug_intercepts); i++)
+	    if (memcmp(intercept, debug_intercepts[i].label, 
+		    strlen(debug_intercepts[i].label)) == 0)
+		return (*debug_intercepts[i].connect)(
+			intercept + strlen(debug_intercepts[i].label),
+			host);
+	errx(1, "dnstcp_connect: bad prefix in DNSTCP_CONNECT_INTERCEPT: %s",
+		intercept);
+    }
     return tcp_connect(host, "domain");
 }
 
