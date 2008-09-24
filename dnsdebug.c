@@ -52,18 +52,19 @@ static struct desc rrtype_desc[] = {
     { DNS_TYPE_TXT, "TXT" },
     { DNS_TYPE_TKEY, "TKEY" },
     { DNS_TYPE_TSIG, "TSIG" },
+    { 252, "AXFR" },
+    { 253, "MAILB" },
+    { 254, "MAILA" },
     { DNS_TYPE_ANY, "*" },
     {   0, 0 }
 };
 
 static struct desc rrclass_desc[] = {
     { DNS_CLASS_IN, "IN" },
-    {   2, "CSNET" },
-    {   3, "CHAOS" },
-    {   4, "HESIOD" },
-    { 252, "AXFR" },
-    { 253, "MAILB" },
-    { 254, "MAILA" },
+    { 2, "CSNET" },
+    { 3, "CHAOS" },
+    { 4, "HESIOD" },
+    { DNS_CLASS_NONE, "NONE" },
     { DNS_CLASS_ANY, "ANY" },
     {   0, 0 }
 };
