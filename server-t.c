@@ -107,11 +107,27 @@
 #include "dnsdebug.h"
 #include "err.h"
 
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/un.h>
-#include <sys/wait.h>
-#include <sys/poll.h>
+#if HAVE_SIGNAL_H
+# include <signal.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_SYS_UN_H
+# include <sys/un.h>
+#endif
+#if HAVE_SYS_WAIT_H
+# include <sys/wait.h>
+#endif
+#if HAVE_SYS_POLL_H
+# include <sys/poll.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif
 
 #define TAG "server-t: "
 
@@ -749,10 +765,6 @@ match_query(struct dns_msg *qmsg, const char *pattern)
     return 1;
 }
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
 /* Waits and accepts a single connection on the given port */
 int
 tcp_accept(int port)
@@ -1224,6 +1236,10 @@ delete_unix_listener()
 static int
 build_unix_listener()
 {
+#if !defined(AF_UNIX)
+    warnx("AF_UNIX not available on this system");
+    return -1;
+#else
     int s;
     struct sockaddr_un unaddr;
     char *path;
@@ -1252,6 +1268,7 @@ build_unix_listener()
 	err(1, "listen");
     add_fd(s, unix_listener_ready, 0);
     return s;
+#endif
 }
 
 static RETSIGTYPE

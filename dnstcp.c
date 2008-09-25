@@ -10,7 +10,9 @@
 #include "err.h"
 #include "dns.h"
 #include "dnstcp.h"
-#include <sys/un.h>
+#if HAVE_SYS_UN_H
+# include <sys/un.h>
+#endif
 
 /*
  * DNS over TCP
@@ -117,6 +119,7 @@ tcp_connect(const char *host, const char *service)
 static int
 unix_connect(const char *local)
 {
+#ifdef AF_UNIX
     int s;
     struct sockaddr_un unaddr;
 
@@ -136,6 +139,10 @@ unix_connect(const char *local)
 	return -1;
     }
     return s;
+#else
+    warnx("AF_UNIX not implemented");
+    return -1;
+#endif
 }
 
 /*
@@ -164,10 +171,15 @@ debug_connect_exec(const char *wrapper, const char *host)
 {
     int sp[2];
 
+#if HAVE_SOCKETPAIR && defined(AF_UNIX)
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0) {
 	warn("socketpair");
 	return -1;
     }
+#else
+    warnx("unable to create bidirectional IPC");
+    return -1;
+#endif
 
     if (signal(SIGCHLD, SIG_IGN) == SIG_ERR)
 	warn("signal SIGCHLD");

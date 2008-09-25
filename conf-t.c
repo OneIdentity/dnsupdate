@@ -1,11 +1,7 @@
 
 /* Unit tests for conf */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "common.h"
 #include "conf.h"
 
 #define TESTFILEPATH "/tmp/_conf_test.txt"

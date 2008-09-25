@@ -1,10 +1,7 @@
 
 /* Unit tests for lists */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "common.h"
 #include "list.h"
 
 #define streq(a,b) ((a)!=NULL && (b)!=NULL && strcmp(a,b)==0)

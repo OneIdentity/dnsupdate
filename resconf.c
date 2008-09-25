@@ -3,9 +3,6 @@
  * Records resolver configuration, as read from /etc/resolv.conf
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "common.h"
 #include "resconf.h"
 #include "stream.h"

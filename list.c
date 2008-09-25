@@ -2,8 +2,7 @@
 /* Manage lists. A list is a null terminated array of string pointers.
  * This code is meant to be convenient, not efficient. Won't scale */
 
-#include <stdlib.h>
-#include <string.h>
+#include "common.h"
 #include "list.h"
 
 /* Creates a list out of a whitespace separated string. 
