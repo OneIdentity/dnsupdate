@@ -96,7 +96,7 @@ $(PP):
 	    exit 1; \
 	fi
 
-MachineXlatorsdir = /opt/quest/libexec/vgp/xlators/Machine
+MachineXlatorsdir = $(libexecdir)/vgp/xlators/Machine
 MachineXlators_SCRIPTS = quest-dnsupdate-xlator
 quest-dnsupdate-xlator: xlator.sh.in
 	$(SUBST) <$(srcdir)/xlator.sh.in > $@
@@ -106,11 +106,12 @@ xlator-t: xlator-t.sh
 	chmod +x $@
 
 check_PROGRAMS += xlator-t
-EXTRA_DIST += xlator.sh.in xlator-t.sh
-CLEANFILES += quest-dnsupdate-xlator xlator-t
+xlator_t_SOURCES = xlator-t.sh
+EXTRA_DIST += xlator.sh.in 
+CLEANFILES += quest-dnsupdate-xlator 
 
 dnsupdate-t: dnsupdate-t.sh
 	cat $(srcdir)/dnsupdate-t.sh > $@
 	chmod +x $@
 check_PROGRAMS+=	dnsupdate-t
-CLEANFILES += dnsupdate-t
+dnsupdate_t_SOURCES = dnsupdate-t.sh
