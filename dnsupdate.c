@@ -476,7 +476,7 @@ update(int s, struct verify_context *vctx,
 {
     struct dns_msg *msg;
     struct dns_header header, rheader;
-    struct dns_rr zonerr, prerr, delrr, addrr;
+    struct dns_rr rr;
     char buffer[32768];
     int len;
     int rcode = -1;
@@ -486,47 +486,47 @@ update(int s, struct verify_context *vctx,
     header.id = unique_id();
     header.opcode = DNS_OP_UPDATE;
 
-    /* Questions [=Zones affected] */
-    header.qdcount++;
-    memset(&zonerr, 0, sizeof zonerr);
-    dns_rr_set_name(&zonerr, auth_domain);
-    zonerr.type = DNS_TYPE_SOA;
-    zonerr.class_ = DNS_CLASS_IN;
-
-    /* Answers [=Prerequisites] */
-    header.ancount++;
-    memset(&prerr, 0, sizeof prerr);
-    dns_rr_set_name(&prerr, auth_domain);
-    prerr.type = DNS_TYPE_ANY;
-    prerr.class_ = DNS_CLASS_ANY;
-
-    /* Authoritatives [=Updates] */
-    header.nscount++;
-    memset(&delrr, 0, sizeof delrr);		/* Delete existing classes */
-    dns_rr_set_name(&delrr, fqdn);
-    delrr.type = utype;
-    delrr.class_ = DNS_CLASS_ANY;
-
-    if (!deleting) {
-	header.nscount++;
-	memset(&addrr, 0, sizeof addrr);	/* Add specific class */
-	dns_rr_set_name(&addrr, fqdn);
-	addrr.type = utype;
-	addrr.class_ = uclass;
-	addrr.ttl = uttl;
-    } else if (verbose > 1)
-	fprintf(stderr, "update is a delete request: data ignored\n");
-
     msg = dns_msg_new();
     dns_msg_setbuf(msg, buffer, sizeof buffer);
     dns_wr_header(msg, &header);
-    dns_wr_question(msg, &zonerr);
-    dns_wr_rr_head(msg, &prerr);
+
+    /* Questions [=Zones affected] */
+    memset(&rr, 0, sizeof rr);
+    dns_rr_set_name(&rr, auth_domain);
+    rr.type = DNS_TYPE_SOA;
+    rr.class_ = DNS_CLASS_IN;
+    dns_wr_question(msg, &rr);
+    dns_wr_inc_qdcount(msg);
+
+    /* Answers [=Prerequisites] */
+    if (1) {
+	/* Require that there is no CNAME entry that trumps the A */
+	memset(&rr, 0, sizeof rr);
+	dns_rr_set_name(&rr, fqdn);
+	rr.type = DNS_TYPE_CNAME;
+	rr.class_ = DNS_CLASS_NONE;
+	dns_wr_rr_head(msg, &rr);
+	dns_wr_data(msg, NULL, 0);
+	dns_wr_inc_ancount(msg);
+    }
+
+    /* Authoritatives [=Updates] */
+    memset(&rr, 0, sizeof rr);
+    dns_rr_set_name(&rr, fqdn);
+    rr.type = utype;
+    rr.class_ = DNS_CLASS_ANY;			/* Delete existing entry */
+    dns_wr_rr_head(msg, &rr);
     dns_wr_data(msg, NULL, 0);
-    dns_wr_rr_head(msg, &delrr);
-    dns_wr_data(msg, NULL, 0);
+    dns_wr_inc_nscount(msg);
+
     if (!deleting) {
-	dns_wr_rr_head(msg, &addrr);
+	/* Adding the new entry */
+	memset(&rr, 0, sizeof rr);
+	dns_rr_set_name(&rr, fqdn);
+	rr.type = utype;
+	rr.class_ = uclass;
+	rr.ttl = uttl;
+	dns_wr_rr_head(msg, &rr);
 	if (udatalen == -1) {	/* If udatalen == -1, then its a domain name */
 	    uint16_t mark;
 	    dns_wr_begin(msg, &mark);
@@ -534,7 +534,9 @@ update(int s, struct verify_context *vctx,
 	    dns_wr_end(msg, &mark);
 	} else
 	    dns_wr_data(msg, udata, udatalen);
-    }
+	dns_wr_inc_nscount(msg);
+    } else if (verbose > 1)
+	fprintf(stderr, "update is a delete request: data ignored\n");
 
     if (vctx)
 	dns_tsig_sign(msg, vctx->key_name, tsig_name, 36000, NULL, 0,
