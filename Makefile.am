@@ -104,6 +104,13 @@ quest-dnsupdate-xlator: xlator.sh.in
 xlator-t: xlator-t.sh
 	cat $(srcdir)/xlator-t.sh > $@
 	chmod +x $@
+
 check_PROGRAMS += xlator-t
 EXTRA_DIST += xlator.sh.in xlator-t.sh
 CLEANFILES += quest-dnsupdate-xlator xlator-t
+
+dnsupdate-t: dnsupdate-t.sh
+	cat $(srcdir)/dnsupdate-t.sh > $@
+	chmod +x $@
+check_PROGRAMS+=	dnsupdate-t
+CLEANFILES += dnsupdate-t

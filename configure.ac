@@ -38,7 +38,7 @@ AC_CHECK_TYPE([socklen_t],[AC_DEFINE([HAVE_SOCKLEN_T],[1],[socklen_t])],,[
 # include <sys/socket.h>
 #endif
 ])
-
+AC_TYPE_SIGNAL
 AC_CANONICAL_HOST
 AC_MSG_CHECKING([ipwatchd needed])
 case $host in

@@ -1,7 +1,9 @@
 1.3.0.?
-    - use syslog as daemon facility
+    - alter packet format to match MS DNS Client
+    - new VGP xlator for group policy control
+    - use syslog for logging
     - bug 570: -t0 wasn't deleting records
-    - use configuration file for options similar to Microsoft's DNS client
+    - use configuration file for options
     - follow NS records when primary SOA update fails
     - bug 484: detect the authoritative domain name by doing an SOA query
     - bug 467: add -r option for PTR updates
