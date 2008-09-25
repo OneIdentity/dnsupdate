@@ -1225,7 +1225,7 @@ static int
 build_unix_listener()
 {
     int s;
-    struct sockaddr_un sun;
+    struct sockaddr_un unaddr;
     char *path;
     char *env;
     const char *envname = "DNSTCP_CONNECT_INTERCEPT";
@@ -1240,12 +1240,12 @@ build_unix_listener()
     if (putenv(env))
 	err(1, "putenv");
 
-    memset(&sun, 0, sizeof sun);
-    snprintf(sun.sun_path, sizeof sun.sun_path, "%s", path);
-    sun.sun_family = AF_UNIX;
+    memset(&unaddr, 0, sizeof unaddr);
+    snprintf(unaddr.sun_path, sizeof unaddr.sun_path, "%s", path);
+    unaddr.sun_family = AF_UNIX;
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 	err(1, "socket");
-    if (bind(s, (struct sockaddr *)&sun, sizeof sun) < 0)
+    if (bind(s, (struct sockaddr *)&unaddr, sizeof unaddr) < 0)
 	err(1, "bind %s", path);
     atexit(delete_unix_listener);
     if (listen(s, 2) < 0)
@@ -1318,8 +1318,10 @@ stop_child()
 	   fprintf(stderr, TAG"child exit %d\n", WEXITSTATUS(status));
 	if (WIFSIGNALED(status))
 	   fprintf(stderr, TAG"child signal %d\n", WTERMSIG(status));
+#ifdef WCOREDUMP
 	if (WCOREDUMP(status))
 	   fprintf(stderr, TAG"child core dumped\n");
+#endif
     }
     return ok;
 }

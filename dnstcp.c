@@ -118,19 +118,19 @@ static int
 unix_connect(const char *local)
 {
     int s;
-    struct sockaddr_un sun;
+    struct sockaddr_un unaddr;
 
     s = socket(AF_UNIX, SOCK_STREAM, 0);
     if (s < 0) {
 	warn("socket");
 	return -1;
     }
-    memset(&sun, 0, sizeof sun);
-    sun.sun_family = AF_UNIX;
-    snprintf(sun.sun_path, sizeof sun.sun_path, "%s", local);
+    memset(&unaddr, 0, sizeof unaddr);
+    unaddr.sun_family = AF_UNIX;
+    snprintf(unaddr.sun_path, sizeof unaddr.sun_path, "%s", local);
     if (verbose > 2)
-	fprintf(stderr, "connecting to unix socket %s\n", sun.sun_path);
-    if (connect(s, (struct sockaddr *)&sun, sizeof sun) < 0) {
+	fprintf(stderr, "connecting to unix socket %s\n", unaddr.sun_path);
+    if (connect(s, (struct sockaddr *)&unaddr, sizeof unaddr) < 0) {
 	warn("connect");
 	close(s);
 	return -1;
