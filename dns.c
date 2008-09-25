@@ -309,6 +309,18 @@ dns_msg_getpos(const struct dns_msg *msg)
     return msg->pos;
 }
 
+/* Sets the current position */
+void
+dns_rd_setpos(struct dns_msg *msg, size_t pos)
+{
+    if (pos > msg->pos)
+	dns_rd_skip(msg, pos - msg->pos);
+    else if (pos < msg->pos) {
+	msg->remain[msg->depth] += (msg->pos - pos);
+	msg->pos = pos;
+    }
+}
+
 /* Returns the data remaining to be read */
 void
 dns_msg_getbuf(const struct dns_msg *msg, void **bufp, size_t *szp)

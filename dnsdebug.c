@@ -271,7 +271,7 @@ dumpmsg(struct dns_msg *msg)
 	"zone", "prerequisite", "update", "additional" };
     const char **section_names;
     const char *section_name;
-
+    size_t savepos;
     void *bufsave;
     size_t bufszsave;
 
@@ -309,6 +309,12 @@ dumpmsg(struct dns_msg *msg)
 
 	dns_rd_rr_head(msg, &rr);
 	dumprr(&rr, section_name);
+
+	/* Extract the rdata length without moving the read pointer */
+	savepos = dns_msg_getpos(msg);
+	dumpuint16(msg, "rdata.length");
+	dns_rd_setpos(msg, savepos);
+
 	if (rr.type == 250) {
 	    uint16_t timehi;
 	    uint32_t timelo;

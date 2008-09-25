@@ -106,6 +106,9 @@ void dns_msg_setbuf(struct dns_msg *, void *, size_t);
 /* Returns the current position in the read/write buffer */
 size_t dns_msg_getpos(const struct dns_msg *msg);
 
+/* Restores a position in a read buffer */
+void dns_rd_setpos(struct dns_msg *msg, size_t pos);
+
 /* Returns the data remaining in a read buffer */
 void dns_msg_getbuf(const struct dns_msg *msg, void **bufp, size_t *szp);
 
