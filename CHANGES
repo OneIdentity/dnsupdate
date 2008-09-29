@@ -1,4 +1,4 @@
-1.3.0.?
+1.3.0.118 [2008-09-29]
     - alter packet format to match MS DNS Client
     - new VGP xlator for group policy control
     - use syslog for logging
