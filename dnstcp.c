@@ -103,7 +103,7 @@ tcp_connect(const char *host, const char *service)
     memcpy(&sin.sin_addr, hostent->h_addr, sizeof sin.sin_addr);
 
     if (verbose > 2)
-	fprintf(stderr, "connecting to port %u\n", servent->s_port);
+	fprintf(stderr, "connecting to port %u\n", ntohs(sin.sin_port));
 
     if (connect(s, (struct sockaddr *)&sin, sizeof sin) < 0) {
 	warn("connect");
