@@ -626,8 +626,22 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 
     /* The domain server's principal name */
     if (!server_spn) {
+       krb5_context krb5_ctx;
+       char **realms;
+
+       /* Workaround for vas_gss which uses the default realm instead
+	* of detecting the host realm for a service */
+       if (vas_krb5_get_context(ctx, &krb5_ctx)) {
+	   warnx("vas_krb5_get_context: %s", vas_err_get_string(ctx, 1));
+	   goto fail;
+       }
+       if (krb5_get_host_realm(krb5_ctx, server, &realms)) {
+	   warnx("krb5_get_host_realm: %s", krb5_get_error_string(krb5_ctx));
+	   goto fail;
+       }
        snprintf(server_principal, sizeof server_principal,
-	    "dns/%s", server);
+	    "dns/%s@%s", server, realms[0]);
+       (void)krb5_free_host_realm(krb5_ctx, realms);
        server_spn = server_principal;
     }
 
@@ -1048,6 +1062,11 @@ main(int argc, char **argv)
 
     if (verbose)
 	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
+
+    if (verbose > 1) { 
+	void vas_log_init(int, int, int, void *, int);
+	vas_log_init(3, 9, 3, 0, 0);
+    }
 
     /*
      * Sanity check the options 
