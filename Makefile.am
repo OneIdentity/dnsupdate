@@ -85,16 +85,20 @@ POLYPKGFILE=/data/rc/pub/rc/polypkg/pp
 POLYPKGURI=http://rc.quest.com/pub/rc/polypkg/pp
 
 $(PP):
-	if [ -r "$(POLYPKGFILE)" ]; then \
-	    ln -s $(POLYPKGFILE) $@; \
-	elif which wget >/dev/null 2>&1; then \
-	    wget -O $@ "$(POLYPKGURI)"; \
-	elif which curl >/dev/null 2>&1; then \
-	    curl -o $@ "$(POLYPKGURI)"; \
+	@if [ -r $(POLYPKGFILE) ]; then \
+	    echo $(LN_S) $(POLYPKGFILE) $@; \
+	    $(LN_S) $(POLYPKGFILE) $@; \
+	elif test x"$(WGET)" != x"false"; then \
+	    echo $(WGET) -O $@ "$(POLYPKGURI)"; \
+	    $(WGET) -O $@ "$(POLYPKGURI)"; \
+	elif test x"$(CURL)" != x"false"; then \
+	    echo $(CURL) -o $@ "$(POLYPKGURI)"; \
+	    $(CURL) -o $@ "$(POLYPKGURI)"; \
 	else \
-	    echo "Cannot figure out how to get polypkg"; \
+	    echo "Cannot figure out how to get $@" >&2; \
 	    exit 1; \
 	fi
+CLEANFILES += pp
 
 MachineXlatorsdir = $(libexecdir)/vgp/xlators/Machine
 MachineXlators_SCRIPTS = quest-dnsupdate-xlator

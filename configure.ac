@@ -26,6 +26,12 @@ if test x"$VASCONFIG" = x"no"; then
 fi
 AC_SUBST([VASCONFIG])
 
+AC_PROG_LN_S
+AC_PATH_PROG([WGET], [wget], [false])
+AC_SUBST([WGET])
+AC_PATH_PROG([CURL], [curl], [false])
+AC_SUBST([CURL])
+
 AC_CHECK_FUNC([getaddrinfo])
 AC_CHECK_FUNC([vsyslog])
 AC_CHECK_FUNC([getopt], [], [AC_LIBOBJ([getopt])])
