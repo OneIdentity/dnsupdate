@@ -13,16 +13,27 @@ int main()
     char foo[] = "foo";
     char bar[] = "bar";
 
-    list = NULL;
+    /* Check that assert is working */
+    ret = 0;
+    assert(ret = 1);
+    if (!ret) { fprintf(stderr, "assert() not working\n"); exit(1); }
+
+    assert(list_is_empty_or_null(NULL));
+
+    list = list_new();
+    assert(list != NULL);
+    assert(list[0] == NULL);
     assert(list_length(list) == 0);
+    assert(list_is_empty_or_null(list));
     list2 = list_dup(list);
     assert(list2 != NULL);
     assert(list2[0] == NULL);
     assert(list_length(list2) == 0);
+    assert(list_is_empty_or_null(list2));
     list_free(list);
     list_free(list2);
 
-    list = NULL;
+    list = list_new();
     ret = list_append(&list, bar);
     assert(ret == 1);
     assert(list != NULL);
@@ -30,6 +41,7 @@ int main()
     assert(list[0] != bar);
     assert(list[1] == NULL);
     assert(list_length(list) == 1);
+    assert(!list_is_empty_or_null(list));
     ret = list_append(&list, foo);
     assert(ret == 2);
     assert(list != NULL);
@@ -39,6 +51,7 @@ int main()
     assert(list[1] != foo);
     assert(list[2] == NULL);
     assert(list_length(list) == 2);
+    assert(!list_is_empty_or_null(list));
     list_free(list);
 
     list = list_from_single(foo);
@@ -64,13 +77,16 @@ int main()
     list_free(list2);
 
     list = list_from_string("");
-    assert(list == NULL);
+    assert(list != NULL);
+    assert(list_length(list) == 0);
 
     list = list_from_string(" ");
-    assert(list == NULL);
+    assert(list != NULL);
+    assert(list_length(list) == 0);
 
     list = list_from_string("        ");
-    assert(list == NULL);
+    assert(list != NULL);
+    assert(list_length(list) == 0);
 
     list = list_from_string("word");
     assert(list != NULL);
@@ -201,6 +217,13 @@ int main()
     assert(streq(list[3], "f"));
     assert(list[4] == NULL);
     assert(list_length(list) == 4);
+
+    list_remove(list, "f");
+    list_remove(list, "b");
+    list_remove(list, "d");
+    list_remove(list, "c");
+    assert(list != NULL);
+    assert(list_length(list) == 0);
 
     list_free(list);
 

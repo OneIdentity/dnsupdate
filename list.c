@@ -5,6 +5,17 @@
 #include "common.h"
 #include "list.h"
 
+static char **
+list_alloc(int len)
+{
+    char **list;
+
+    if (!(list = (char **)malloc((len + 1) * sizeof (char *))))
+	return NULL;
+    list[len] = NULL;
+    return list;
+}
+
 /* Creates a list out of a whitespace separated string. 
  * Returns NULL on error */
 char **
@@ -17,8 +28,9 @@ list_from_string(const char *string)
     while (*string == ' ')
 	string++;
 
-    /* Copy words into the list */
-    list = NULL;
+    if (!(list = list_alloc(0)))
+	return NULL;
+
     s = string;
     for (;;) {
 	while (*s == ' ')
@@ -29,7 +41,8 @@ list_from_string(const char *string)
 	while (*s && *s != ' ')
 	    s++;
 	wordlen = s - start;
-	word = malloc(wordlen + 1);
+	/* Duplicate s[start..start+wordlen] */
+	word = (char *)malloc(wordlen + 1);
 	if (!word) {
 	    list_free(list);
 	    return NULL;
@@ -42,17 +55,28 @@ list_from_string(const char *string)
     return list;
 }
 
-/* Returns the length of a list */
+/* Returns the length of a list. Lists must not be NULL. */
 int
 list_length(char **list)
 {
     int len;
 
-    if (!list)
-	return 0;
     for (len = 0; *list; list++)
 	len++;
     return len;
+}
+
+/* Returns true if the list is empty or null */
+int
+list_is_empty_or_null(char **list)
+{
+    return !list || !*list;
+}
+
+char **
+list_new()
+{
+    return list_alloc(0);
 }
 
 /* Create a list from a single item */
@@ -62,19 +86,18 @@ list_from_single(const char *item)
     char **list;
     char *item_copy;
 
-    item_copy = strdup(item);
-    list = (char **)malloc(sizeof (char *) * 2);
-    if (!item_copy || !list) {
-	if (item_copy) free(item_copy);
-	if (list) free(list);
+    if (!(item_copy = strdup(item)))
+	return NULL;
+    if (!(list = list_alloc(1))) {
+	free(item_copy);
 	return NULL;
     }
     list[0] = item_copy;
-    list[1] = NULL;
     return list;
 }
 
-/* Append an item to the list. 
+/* Append an item to the list. The item is copied with strdup.
+ * List must already have been allocated.
  * Returns new length on list success, or -1 on error */
 int
 list_append(char ***listp, const char *item)
@@ -87,18 +110,17 @@ list_append(char ***listp, const char *item)
     nwords = list_length(*listp);
 
     /* Allocate new storage */
-    new_list = (char **)malloc(sizeof (char *) * (nwords + 1 + 1));
-    item_copy = strdup(item);
-    if (!new_list || !item_copy) {
-	if (new_list) free(new_list);
-	if (item_copy) free(item_copy);
+    if (!(new_list = list_alloc(nwords + 1)))
+	return -1;
+
+    if (!(item_copy = strdup(item))) {
+	free(new_list);
 	return -1;
     }
 
     if (*listp)
 	memcpy(new_list, *listp, sizeof (char *) * nwords);
     new_list[nwords] = item_copy;
-    new_list[nwords + 1] = NULL;
 
     if (*listp)
 	free(*listp);
@@ -106,17 +128,17 @@ list_append(char ***listp, const char *item)
     return nwords + 1;
 }
 
-/* Frees a previously allocated list */
+/* Frees a previously allocated list. OK if list is NULL */
 void
 list_free(char **list)
 {
     char **l;
 
-    if (!list)
-	return;
-    for (l = list; *l; l++)
-	free(*l);
-    free(list);
+    if (list) {
+	for (l = list; *l; l++)
+	    free(*l);
+	free(list);
+    }
 }
 
 /* Returns a duplicate of a list */
@@ -127,10 +149,15 @@ list_dup(char **list)
     int i, nwords;
 
     nwords = list_length(list);
-    list_copy = (char **)malloc(sizeof (char *) * (nwords + 1));
+    if (!(list_copy = list_alloc(nwords)))
+	return NULL;
     for (i = 0; i < nwords; i++)
-	list_copy[i] = strdup(list[i]);
-    list_copy[nwords] = NULL;
+	if (!(list_copy[i] = strdup(list[i]))) {
+	    while (i--)
+		free(list_copy[i]);
+	    free(list_copy);
+	    return NULL;
+	}
     return list_copy;
 }
 
@@ -141,8 +168,6 @@ list_remove(char **list, const char *item)
 {
     char **ok;
 
-    if (!list)
-	return;
     for (ok = list; *list; list++)
 	if (strcmp(*list, item) == 0)
 	    free(*list);

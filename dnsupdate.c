@@ -966,6 +966,7 @@ main(int argc, char **argv)
     size_t udatalen;
     char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
     char **domain_list;
+    char **ns_list;
 
     err_enable_syslog(1);
 
@@ -1254,17 +1255,21 @@ main(int argc, char **argv)
 	 * Step 2: Figure out which nameserver to update against
 	 */
 
-	/* The user may have supplied a list of nameservers with -n */
-	server_list = user_servers;
 	auth_domain = user_auth_domain;
 
-	if (!server_list) {
+	/* The user may have supplied a list of nameservers with -n */
+	server_list = NULL;
+	if (user_servers)
+	    server_list = list_dup(user_servers);
+
+	if (list_is_empty_or_null(server_list)) {
 	    /* Perform an SOA query on the record name we want to update. 
 	     * The primary server from the SOA response becomes the 
 	     * first host we will try. */
 	    if (query_soa(ns, name, auth_domainbuf, sizeof auth_domainbuf,
 			auth_primary, sizeof auth_primary) == 0) 
 	    {
+		list_free(server_list);
 		server_list = list_from_single(auth_primary);
 		/* Later we will use auth_domainbuf to find more servers */
 		extend_servers_on_fail = 1;
@@ -1277,24 +1282,26 @@ main(int argc, char **argv)
 	}
 
 	/* If we still don't have a list of servers, ask VAS for DCs */
-	if (vas_ctx && !server_list) {
+	if (vas_ctx && list_is_empty_or_null(server_list)) {
 	    char **vas_servers = NULL;
 	    error = vas_info_servers(vas_ctx, NULL, NULL, VAS_SRVINFO_TYPE_DC,
 		    &vas_servers);
-	    if (error) {
+	    if (error)
 		warnx("vas_info_servers: %s", vas_err_get_string(vas_ctx, 1));
-		server_list = NULL;
-	    } else {
+	    else {
+		list_free(server_list);
 		server_list = list_dup(vas_servers);
 		vas_info_servers_free(vas_ctx, vas_servers);
 	    }
 	}
 
 	/* Last resort: try all nameservers in resolv.conf */
-	if (!server_list)
+	if (list_is_empty_or_null(server_list)) {
+	    list_free(server_list);
 	    server_list = resconf_get("nameserver");
+	}
 
-	if (!server_list || !*server_list)
+	if (list_is_empty_or_null(server_list)) 
 	    errx(1, "Cannot determine nameservers to update against");
 
 	if (!auth_domain) 
@@ -1321,9 +1328,10 @@ main(int argc, char **argv)
 	 */
 
 	ret = -1;
+	ns_list = NULL;
 	for (serverp = server_list; ; serverp++) {
 	    if (!*serverp && extend_servers_on_fail) {
-		char **ns_list = NULL, **lp;
+		char **lp;
 		/* If we exhausted the server list obtained from an SOA query
 		 * then try adding more by performing an NS query on 
 		 * the authoritative domain itself */
@@ -1334,8 +1342,7 @@ main(int argc, char **argv)
 		    warnx("unable to get NS records for %s", auth_domainbuf);
 		for (lp = server_list; *lp; lp++)
 		    list_remove(ns_list, *lp);
-		list_free(server_list);
-		server_list = serverp = ns_list;
+		serverp = ns_list;
 	    }
 	    if (!serverp || !*serverp) {
 		if (verbose)
@@ -1402,8 +1409,9 @@ main(int argc, char **argv)
 		    name, 
 		    utype == DNS_TYPE_A ? "A" : "PTR",
 		    (ret == 0) ? "succeeded" : "failed");
-	list_free(server_list);
+	list_free(ns_list);
     }
+    list_free(server_list);
 
     dnstcp_close(&ns);
 
