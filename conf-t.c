@@ -54,6 +54,7 @@ int main()
 	       " g = eol \t");
     fclose(f);
 
+    fprintf(stderr, "(Ignore following error about expected '=')\n");
     config_load(TESTFILEPATH);
     (void)unlink(TESTFILEPATH);
     assert(strcmp(config_get_string("a", "x"),"a") == 0);
