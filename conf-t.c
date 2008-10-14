@@ -6,6 +6,8 @@
 
 #define TESTFILEPATH "/tmp/_conf_test.txt"
 
+int verbose;
+
 int main()
 {
     FILE *f;

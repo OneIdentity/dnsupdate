@@ -8,6 +8,8 @@
 #include "conf.h"
 #include "stream.h"
 
+extern int verbose;
+
 /* A configuration entry */
 struct config {
     char *key, *value;
@@ -40,6 +42,8 @@ config_add(char *key, char *value)
     config->value = value;
     config->next = Config;
     Config = config;
+    if (verbose > 2)
+	fprintf(stderr, "config_add: %s = %s\n", key, value);
 }
 
 /* Adds settings from a configuration file into the global configuration. */
@@ -48,8 +52,13 @@ config_load(const char *path)
 {
     struct stream stream;
    
-    if (!stream_init_path(&stream, path))
+    if (verbose > 2)
+	fprintf(stderr, "config_load %s\n", path);
+    if (!stream_init_path(&stream, path)) {
+	if (verbose)
+	    warn("%s", path);
 	return;
+    }
     config_load_stream(&stream);
     stream_fini(&stream);
 }

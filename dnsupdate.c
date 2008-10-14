@@ -921,6 +921,19 @@ parent_domain(const char *d)
     return d;
 }
 
+/* Load default configuration, once */
+static void
+config_init_once()
+{
+    static int config_loaded;
+
+    if (!config_loaded) {
+	config_loaded = 1;
+	config_load(PATH_SYSCONFDIR "/dnsupdate.conf");
+	resconf_init();
+    }
+}
+
 /* Sets an option of the form "KEY=VALUE" */
 static int
 config_opt(char *arg)
@@ -970,10 +983,6 @@ main(int argc, char **argv)
 
     err_enable_syslog(1);
 
-    /* Load default configuration */
-    config_load(PATH_SYSCONFDIR "/dnsupdate.conf");
-    resconf_init();
-
     /* Argument processing */
     while ((ch = getopt(argc, argv, "a:C:d:h:INo:rs:S:t:vV")) != -1)
 	switch (ch) {
@@ -994,15 +1003,18 @@ main(int argc, char **argv)
             ietf_compliant = 1;
 	    break;
 	case 'N':
+	    config_init_once();
 	    config_add("UpdateSecurityLevel", STR(SECURITY_ONLY_UNSECURE));
 	    break;
 	case 'o':
+	    config_init_once();
 	    if (!config_opt(optarg)) {
 		fprintf(stderr, "bad option '%s'\n", optarg);
 		opterror = 1;
 	    }
 	    break;
 	case 'r':
+	    config_init_once();
 	    config_add("RegisterReverseLookup", "1");
 	    break;
 	case 's':
@@ -1013,6 +1025,7 @@ main(int argc, char **argv)
 	    server_spn = optarg;
 	    break;
 	case 't':
+	    config_init_once();
 	    config_add("RegistrationTtl", optarg);
 	    break;
 	case 'v':
@@ -1026,6 +1039,8 @@ main(int argc, char **argv)
 	    opterror = 1;
 	    break;
 	}
+
+    config_init_once();
 
     /* Expect an IP address argument */
     if (!(optind < argc && my_inet_aton(argv[optind++], ipaddr, sizeof ipaddr)))
