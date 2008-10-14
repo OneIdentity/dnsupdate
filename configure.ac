@@ -9,7 +9,9 @@ AC_CONFIG_FILES([Makefile ipwatchd/Makefile])
 AC_CONFIG_HEADERS([config.h])
 
 AC_PREFIX_DEFAULT([/opt/quest])
+# Note: these directory changes makes the --help output wrong
 AC_SUBST([mandir], ['${prefix}/man'])
+AC_SUBST([sysconfdir], ['/etc${prefix}'])
 
 AC_PROG_CC
 AC_PROG_SED
