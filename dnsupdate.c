@@ -367,7 +367,11 @@ query_ns(int s, const char *domain, char ***list_ret)
     char name[DNS_MAXNAME];
     int len;
     int rcode = -1;
-    char **list = NULL;
+    char **list;
+
+    list = list_new();
+    if (!list)
+	errx(1, "query_ns: cannot allocate list");
 
     memset(&header, 0, sizeof header);
     header.id = unique_id();
