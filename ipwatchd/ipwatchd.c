@@ -364,7 +364,8 @@ notify_primary_ipv4_change()
 	}
 
 	set_primary_address(newPrimaryAddress);
-	CFRelease(prop);
+	if (prop)
+	    CFRelease(prop);
 }
 
 /*
