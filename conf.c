@@ -6,6 +6,7 @@
 
 #include "common.h"
 #include "conf.h"
+#include "err.h"
 #include "stream.h"
 
 extern int verbose;
