@@ -13,8 +13,41 @@ AC_PREFIX_DEFAULT([/opt/quest])
 AC_SUBST([mandir], ['${prefix}/man'])
 AC_SUBST([sysconfdir], ['/etc${prefix}'])
 
-AC_PROG_CC
 AC_PROG_SED
+
+# look for Apple's universal binary support
+AC_PROG_CC
+AC_ARG_ENABLE([universal-binary],
+	      [AC_HELP_STRING([--enable-universal-binary=auto],
+			      [Apple universal binary support])],,
+	      [enable_universal_binary=auto])
+have_universal_binary=no
+if test x"$enable_universal_binary" != x"no"; then
+    AC_CANONICAL_HOST
+    AC_MSG_CHECKING([for universal binary support])
+    case $host in *-apple-darwin*)
+       mysave_CFLAGS="$CFLAGS"
+       mysave_CFLAGS="$LDFLAGS"
+       CFLAGS="$CFLAGS -arch ppc -arch i386"
+       LDFLAGS="$LDFLAGS -arch ppc -arch i386"
+       AC_LINK_IFELSE([int main(){return 0;}],[have_universal_binary=yes])
+       if test $have_universal_binary = no; then
+	   LDFLAGS="$mysave_LDFLAGS"
+	   CFLAGS="$mysave_CFLAGS"
+       fi
+    esac
+    AC_MSG_RESULT($have_universal_binary)
+fi
+case "$have_universal_binary:$enable_universal_binary" in
+    no:yes) AC_MSG_ERROR([no universal binary support on this host]) ;;
+    yes:*)  AC_MSG_WARN([disabling dependency tracking])
+	    AM_CONDITIONAL([AMDEP],[false])	    # automake-1.9.6
+	    AM_CONDITIONAL([am__fastdep],[false])
+	    AM_CONDITIONAL([am__fastdepCC],[false])
+	    AMDEPBACKSLASH=
+	    ;;
+esac
+
 AC_C_CONST
 AC_HEADER_STDC
 AC_HEADER_TIME
