@@ -64,6 +64,7 @@ endif
 
 check_PROGRAMS=		conf-t
 conf_t_SOURCES=		conf-t.c conf.c conf.h stream.c stream.h
+conf_t_SOURCES+=	err.c err.h
 conf_t_CFLAGS =		-ggdb
 
 check_PROGRAMS+=	list-t
