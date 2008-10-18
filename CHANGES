@@ -1,3 +1,9 @@
+1.3.1.132 [2008-10-17]
+    - support universal binaries for Mac OS X
+    - correct conf path to /etc/opt/quest instead of /opt/quest/etc
+    - improved diagnostics of config file loading
+    - fix seg faults related to -s option and when Mac wakes from sleep
+    - better detection of internet tools when building
 1.3.0.118 [2008-09-29]
     - alter packet format to match MS DNS Client
     - new VGP xlator for group policy control
