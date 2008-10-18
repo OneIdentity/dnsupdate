@@ -42,7 +42,6 @@ case "$have_universal_binary:$enable_universal_binary" in
     no:yes) AC_MSG_ERROR([no universal binary support on this host]) ;;
     yes:*)  AC_MSG_WARN([disabling dependency tracking])
 	    AM_CONDITIONAL([AMDEP],[false])	    # automake-1.9.6
-	    AM_CONDITIONAL([am__fastdep],[false])
 	    AM_CONDITIONAL([am__fastdepCC],[false])
 	    AMDEPBACKSLASH=
 	    ;;
