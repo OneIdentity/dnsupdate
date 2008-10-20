@@ -9,6 +9,7 @@
 %files
   $sbindir/dnsupdate
   $libexecdir/dnsupdate-install-hooks
+  $man8dir/
   $man8dir/dnsupdate.8
   $man8dir/dnsupdate-install-hooks.8
   $MachineXlatorsdir/quest-dnsupdate-xlator
