@@ -144,12 +144,18 @@ When this option is set to 0 (the default), then
 .B dnsupdate
 refuses to perform dynamic updates when the authoritative domain
 is either the root domain ("."), or a top-level domain (such as "com").
+.PP
+If Vintela Group Policy (vasgp) is installed, the configuration file
+may be altered by
+.IR /opt/quest/libexec/vgp/xlators/Machine/quest-dnsupdate-xlator .
+See vgptool(1) for more information.
 .SS "EXIT STATUS"
 The
 .B dnsupdate
 utility exits with status 0 if the update for the A record succeeded.
 .SH "SEE ALSO"
 vastool(1),
+vgptool(1),
 dnsupdate-install-hooks(8),
 .I \%http://rc.quest.com/topics/ddns/
 .SH AUTHORS
