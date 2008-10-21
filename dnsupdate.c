@@ -1080,8 +1080,10 @@ main(int argc, char **argv)
 	exit(2);
     }
 
-    if (verbose)
+    if (verbose) {
 	fprintf(stderr, "dnsupdate %s\n", PACKAGE_VERSION);
+	fprintf(stderr, "libvas %s\n", vas_product_version(0, 0, 0));
+    }
 
     if (verbose > 1) { 
 	void vas_log_init(int, int, int, void *, int);
