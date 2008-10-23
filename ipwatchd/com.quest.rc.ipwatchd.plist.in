@@ -28,7 +28,7 @@ com/DTDs/PropertyList-1.0.dtd">
 	<true/>
 
 	<key>ChangeProgram</key>
-	<string>/opt/quest/sbin/dnsupdate</string>
+	<string>@sbindir@/dnsupdate</string>
 
 	<key>GlobalIPv4Key</key>
 	<string>State:/Network/Global/IPv4</string>
