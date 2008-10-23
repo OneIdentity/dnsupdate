@@ -22,9 +22,22 @@ daemon.
 .RI \-d
 enables debug (verbose) mode
 .TP
-.RI ChangeProgram
-specifies the program to execute. 
-The program is given the new IP address as its first argument.
+The
+.I ChangeProgram
+argument specifies the program to execute. 
+The executed program is given the new IP address as its first argument.
+.PP
+If
+.B ipwatchd
+is run by
+.B launchd
+and no
+.I ChangeProgram
+argument is provided, then
+.B ipwatchd
+will look for and use a string-valued configuration key named ChangeProgram
+passed to it by
+.BR ipwatchd .
 .SH FILES
 .I /Library/LaunchDaemons/com.quest.rc.ipwatchd.plist
 .SH "SEE ALSO"
