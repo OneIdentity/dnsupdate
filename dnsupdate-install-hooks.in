@@ -43,7 +43,8 @@ usage () {
 	  -r    Removes the last installed hook.
 
 	  <platform>   Style of script to install. Must be one of:
-	                   linux aix hpux solaris macos
+			    aix sd solaris macos
+			    redhat linux rpm suse deb
 	               (Note: 'linux' detects dhclient or dhcpcd.)
 
 	  Warning: Running this hook installation script more than once
@@ -388,6 +389,7 @@ case $1 in
 	aix|sd|solaris|macos)
 		platform=$1
 		;;
+	#-- remember to update 'usage' when more platforms are added
 	*)
 		echo "$0: Unrecognised platform '$1'" >&2
 		usage
