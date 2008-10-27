@@ -95,7 +95,8 @@ head_minus_lines () {
 
 # Requiements for 'hookable' platform $PLAT:
 #  - Set the following vars
-#		$HOOKFILE	-- script file to create or append script fragment to
+#		$HOOKFILE	-- script file to create or append 
+#                                  script fragment to
 #		$TMPFILE	-- temporary place for building new hookfile
 #  - Define a function "${PLAT}_script ()" that emits a script fragment
 #       The output of the ${PLAT}_script must not contain '#!'
@@ -114,7 +115,7 @@ hook_insert () {
 		${1}_script >> $HOOKFILE
 	else
 		{ echo '#!/bin/sh'; ${1}_script; } > $HOOKFILE
-		chmod +x $HOOKFILE
+		chmod 755 $HOOKFILE
 	fi
 	verbose "$1 hook installed into $HOOKFILE"
 }
@@ -172,14 +173,14 @@ aix_insert () {
 	    < $REALFILE > $TMPFILE
 	echo "updateDNS \"@sbindir@/dnsupdate '%.0s%.0s%s%.0s'\"" \
 	    >> $TMPFILE
-	cp $TMPFILE $REALFILE
+	cat < $TMPFILE > $REALFILE
 	verbose "Installed dnsupdate hook into $REALFILE"
 }
 
 aix_remove () {
 	grep -v '^updateDNS "@sbindir@/dnsupdate' < $REALFILE | 
 	    sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
-	cp $TMPFILE $REALFILE
+	cat < $TMPFILE > $REALFILE
 	verbose "Removed dnsupdate hook from $REALFILE"
 }
 
