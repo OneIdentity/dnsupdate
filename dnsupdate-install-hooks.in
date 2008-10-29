@@ -33,6 +33,8 @@
 set -e
 TMPSUFFIX='.quest-dhclient.tmp'
 
+umask 022
+
 #-- Display the program usage
 usage () {
 	echo "usage: $0 [-irqh] [platform]" >&2
