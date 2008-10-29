@@ -1,6 +1,6 @@
 /* (c) 2008 Quest Software, Inc. All rights reserved. */
 
-#include <err.h>
+#include </usr/include/err.h>
 #include <alloca.h>
 #include <SystemConfiguration/SystemConfiguration.h>
 #include "watch.h"
