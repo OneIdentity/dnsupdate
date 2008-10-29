@@ -35,17 +35,17 @@ TMPSUFFIX='.quest-dhclient.tmp'
 
 #-- Display the program usage
 usage () {
-	echo "usage: $0 [-irqh] <platform>" >&2
-        [ $# -eq 1 ] && cat <<-. >&2
+	echo "usage: $0 [-irqh] [platform]" >&2
+        cat <<-. >&2
 	  -h    Help (display this information)
 	  -i    Installs a DHCP client hook to run dnsupdate on address changes.
 	  -q    Quiet, no informational messages.
 	  -r    Removes the last installed hook.
 
-	  <platform>   Style of script to install. Must be one of:
-			    aix sd solaris macos
-			    redhat linux rpm suse deb
-	               (Note: 'linux' detects dhclient or dhcpcd.)
+	  platform   Style of hook to install. Auto-detected if missing.
+		     One of:
+			    aix sd solaris macos redhat linux rpm suse deb
+	             (Note: 'linux' auto-detects dhclient or dhcpcd.)
 
 	  Warning: Running this hook installation script more than once
 	           may insert multiple dnsupdate hooks, which is probably not
@@ -216,12 +216,12 @@ solaris_script () {
 
 add_hook_platform hpux
 
-hpux_init () {
+sd_init () {
 	HOOKFILE=/sbin/rc1.d/S321dnsupdate
 	TMPFILE=$HOOKFILE$TMPSUFFIX
 }
 
-hpux_script () {
+sd_script () {
 	cat <<-'.'
 		if test 0 -ne 0`/usr/sbin/ch_rc -l -p 'DHCP_ENABLE[0]'`
 		then
@@ -360,14 +360,14 @@ QUIET=false
 ERROR=false
 ACTION=unset
 while getopts hiqr f; do
-	case "$f" in
-		h) ACTION=help;;
-		i) ACTION=insert;;
-		q) QUIET=true;;
-		r) ACTION=remove;;
-		\?) ERROR=true;;
-		*) 
-	esac
+    case "$f" in
+	h) ACTION=help;;
+	i) ACTION=insert;;
+	q) QUIET=true;;
+	r) ACTION=remove;;
+	\?) ERROR=true;;
+	*) 
+    esac
 done
 shift `expr $OPTIND - 1`
 
@@ -376,26 +376,43 @@ case $ACTION in
     help)   usage help; exit 0;;
 esac
 
-[ $# -eq 1 ] || ERROR=true                  # platform argument is required
-
-if $ERROR; then
-        usage
-        exit 1
+if test $# -ge 1; then
+    style="$1"
+    shift
+else
+    case `uname -s` in
+	AIX)    style=aix;;
+	SunOS)  style=solaris;;
+	Darwin) style=macos;;
+	Linux)  style=linux;;
+	HP-UX)  style=sd;;
+	*)      echo "Cannot auto-detect hook style (platform `uname -s`)" >&2
+	        ERROR=true
+	        ;;
+    esac
 fi
 
-case $1 in
-	redhat|linux|rpm|suse|deb)
-		platform=`detect_linux_platform` || die "unknown Linux platform"
-		;;
-	aix|sd|solaris|macos)
-		platform=$1
-		;;
-	#-- remember to update 'usage' when more platforms are added
-	*)
-		echo "$0: Unrecognised platform '$1'" >&2
-		usage
-		;;
+case "$style" in
+    redhat|linux|rpm|suse|deb)
+	platform=`detect_linux_platform` || die "unknown Linux platform"
+	;;
+    hpux|sd)
+	platform=sd
+	;;
+    aix|solaris|macos)
+	platform=$1
+	;;
+    #-- remember to update 'usage' when more platforms are added
+    *)
+	echo "$0: Unrecognised platform '$1'" >&2
+	ERROR=true
+	;;
 esac
+
+if $ERROR; then
+    usage
+    exit 1
+fi
 
 ${platform}_init
 ${platform}_${ACTION}

@@ -21,6 +21,6 @@
   $datadir/ipwatchd/com.quest.rc.ipwatchd.plist
 
 %post
- %{libexecdir}/dnsupdate-install-hooks -i %{pp_platform}
+ %{libexecdir}/dnsupdate-install-hooks -i
 %preun
- %{libexecdir}/dnsupdate-install-hooks -r %{pp_platform}
+ %{libexecdir}/dnsupdate-install-hooks -r
