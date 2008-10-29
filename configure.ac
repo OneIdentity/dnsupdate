@@ -24,17 +24,28 @@ AC_ARG_ENABLE([universal-binary],
 have_universal_binary=no
 if test x"$enable_universal_binary" != x"no"; then
     AC_CANONICAL_HOST
+    AC_PATH_PROG([XCODE_SELECT], [xcode-select], [false])
     AC_MSG_CHECKING([for universal binary support])
     case $host in *-apple-darwin*)
-       mysave_CFLAGS="$CFLAGS"
-       mysave_CFLAGS="$LDFLAGS"
-       CFLAGS="$CFLAGS -arch ppc -arch i386"
-       LDFLAGS="$LDFLAGS -arch ppc -arch i386"
-       AC_LINK_IFELSE([int main(){return 0;}],[have_universal_binary=yes])
-       if test $have_universal_binary = no; then
-	   LDFLAGS="$mysave_LDFLAGS"
-	   CFLAGS="$mysave_CFLAGS"
-       fi
+        mysave_CFLAGS="$CFLAGS"
+        mysave_CFLAGS="$LDFLAGS"
+        CFLAGS="$CFLAGS -arch ppc -arch i386"
+        LDFLAGS="$LDFLAGS -arch ppc -arch i386"
+	if x"$XCODE_SELECT" != x"false"; then
+            xcodedir=`"$XCODE_SELECT" -print-path`
+	else
+	    xcodedir=/Developer
+        fi
+        SDKdir="$xcodedir/SDKs/MacOSX10.4u.sdk"
+        if test -d "$SDKdir"; then
+            LDFLAGS="$LDFLAGS -isysroot $SDKdir"
+        fi
+        AC_LINK_IFELSE([int main(){return 0;}],[have_universal_binary=yes])
+        if test $have_universal_binary = no; then
+            LDFLAGS="$mysave_LDFLAGS"
+            CFLAGS="$mysave_CFLAGS"
+        fi
+	unset SDKdir xcodedir
     esac
     AC_MSG_RESULT($have_universal_binary)
 fi
