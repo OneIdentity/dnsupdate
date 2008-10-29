@@ -31,7 +31,7 @@ if test x"$enable_universal_binary" != x"no"; then
         mysave_CFLAGS="$LDFLAGS"
         CFLAGS="$CFLAGS -arch ppc -arch i386"
         LDFLAGS="$LDFLAGS -arch ppc -arch i386"
-	if x"$XCODE_SELECT" != x"false"; then
+	if test x"$XCODE_SELECT" != x"false"; then
             xcodedir=`"$XCODE_SELECT" -print-path`
 	else
 	    xcodedir=/Developer
