@@ -99,6 +99,7 @@ $(PP):
 	    echo "Cannot figure out how to get $@" >&2; \
 	    exit 1; \
 	fi
+	chmod +x $@
 CLEANFILES += pp
 
 MachineXlatorsdir = $(libexecdir)/vgp/xlators/Machine
