@@ -91,15 +91,16 @@ $(PP):
 	    $(LN_S) $(POLYPKGFILE) $@; \
 	elif test x"$(WGET)" != x"false"; then \
 	    echo $(WGET) -O $@ "$(POLYPKGURI)"; \
-	    $(WGET) -O $@ "$(POLYPKGURI)"; \
+	    $(WGET) -O $@ "$(POLYPKGURI)" && \
+	    chmod +x $@; \
 	elif test x"$(CURL)" != x"false"; then \
 	    echo $(CURL) -o $@ "$(POLYPKGURI)"; \
-	    $(CURL) -o $@ "$(POLYPKGURI)"; \
+	    $(CURL) -o $@ "$(POLYPKGURI)" && \
+	    chmod +x $@; \
 	else \
 	    echo "Cannot figure out how to get $@" >&2; \
 	    exit 1; \
 	fi
-	chmod +x $@
 CLEANFILES += pp
 
 MachineXlatorsdir = $(libexecdir)/vgp/xlators/Machine
