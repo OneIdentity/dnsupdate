@@ -44,10 +44,11 @@ usage () {
 	  -q    Quiet, no informational messages.
 	  -r    Removes the last installed hook.
 
-	  platform   Style of hook to install. Auto-detected if missing.
+	  platform   DHCP client type to install hook. Auto-detected if missing.
 		     One of:
-			    aix sd solaris macos redhat linux rpm suse deb
-	             (Note: 'linux' auto-detects dhclient or dhcpcd.)
+			    aix hpux solaris macos
+			    linux dhclient dhcpcd odhcpcd
+	             (Note: 'linux' auto-detects dhclient, dhcpcd or odhcpcd.)
 
 	  Warning: Running this hook installation script more than once
 	           may insert multiple dnsupdate hooks, which is probably not
@@ -71,22 +72,6 @@ cleanup () {
 	test -n "$TMPFILE" && rm -f "$TMPFILE"
 }
 trap cleanup 0 1 2
-
-# This function intends to act exactly as 'head --lines=-<number>' does on
-# systems with that feature. It prints all but the last <lines> lines of <file>
-# Syntax is 'head_minus_lines <lines> <file>' where lines is the number of lines
-# to skip and <file> is the file to be processed. No other options are supported
-head_minus_lines () {
-	if test $# -ne 2 -o ! -f $2; then
-		echo 'Bad argument to head_minus_lines()' >&2
-		return 1
-	fi
-
-	lines=`wc -l $2 | awk '{ print $1 }'`
-	lines=`expr $lines - $1`
-	head -n $lines $2
-}
-
 
 #------------------------------------------------------------
 # hook-style platform helper
@@ -114,12 +99,13 @@ hook_insert () {
 	test -n "$HOOKFILE" || die "hook_insert $1: HOOKFILE not set"
 
 	if [ -f $HOOKFILE ]; then
-		${1}_script >> $HOOKFILE
+		hook_script $1 >> $HOOKFILE
 	else
-		{ echo '#!/bin/sh'; ${1}_script; } > $HOOKFILE
+		{ echo '#!/bin/sh'; hook_script $1; } > $HOOKFILE
 		chmod 755 $HOOKFILE
 	fi
 	verbose "$1 hook installed into $HOOKFILE"
+	return 0
 }
 
 # hook_remove($PLAT)
@@ -134,32 +120,53 @@ hook_remove () {
 
 	test -f $HOOKFILE || return 0
 
-	${1}_script > $TMPFILE
-
-	linecount=`wc -l < $TMPFILE`
-	if tail -$linecount $HOOKFILE | cmp $TMPFILE - > /dev/null; then
-		# Strip the dnsupdate script from the end of the hook file
-		cp $HOOKFILE $TMPFILE
-		head_minus_lines $linecount $TMPFILE > $HOOKFILE
-
-		# Remove the hook file if it consists only of shell magic
-		echo '#!/bin/sh' > $TMPFILE
-		if cmp $HOOKFILE $TMPFILE >/dev/null; then
-		    rm -f $HOOKFILE
-		fi
-
-		verbose "hook removed from $HOOKFILE"
+	if hook_test $1; then
+	    tagre=`echo "$hook_tag" | sed -e 's/[./]/[&]/g'`
+	    sed -e "/^# $tagre BEGIN\$/,/^# $tagre END\$/d" \
+		$HOOKFILE > $TMPFILE
+	    if echo '#!/bin/sh' | cmp $TMPFILE > /dev/null; then
+		rm -f $HOOKFILE
+	    else
+		cat $TMPFILE > $HOOKFILE
+	    fi
+	    rm -f $TMPFILE
+	    verbose "hook removed from $HOOKFILE"
 	else
-		echo "$0: No hook found in $HOOKFILE" >&2
-		verbose "no changes made to $HOOKFILE"
-		verbose "manual editing of $HOOKFILE may be necessary."
+	    echo "$0: No hook found in $HOOKFILE" >&2
+	    verbose "no changes made to $HOOKFILE"
+	    verbose "manual editing of $HOOKFILE may be necessary."
 	fi
+	return 0
+}
+
+hook_tag='#quest-dnsupdate @VERSION@#'
+
+# hook_script($PLAT)
+# Writes the platforms-specific script fragment to standard output
+# preceeded by a tag that hook_test will look for
+hook_script () {
+	echo "# $hook_tag BEGIN"
+	${1}_script
+	echo "# $hook_tag END"
+}
+
+# hook_test($PLAT)
+# Tests to see if the hook has already been installed. 
+# Relies on the tag written by hook_script.
+# Exits abnormally if it hasn't.
+hook_test () {
+	test $# -eq 1 || die "hook_test: missing argument"
+	test -n "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
+
+	test -f $HOOKFILE || return 1
+	grep -F "# $hook_tag BEGIN" $HOOKFILE > /dev/null
 }
 
 #-- marks platform as using hook_insert/hook_remove
 add_hook_platform () {
 	eval "${1}_insert () { hook_insert $1; }"
 	eval "${1}_remove () { hook_remove $1; }"
+	eval "${1}_test ()   { hook_test $1; }"
 }
 
 #------------------------------------------------------------
@@ -177,6 +184,7 @@ aix_insert () {
 	    >> $TMPFILE
 	cat < $TMPFILE > $REALFILE
 	verbose "Installed dnsupdate hook into $REALFILE"
+	return 0
 }
 
 aix_remove () {
@@ -184,6 +192,11 @@ aix_remove () {
 	    sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
 	cat < $TMPFILE > $REALFILE
 	verbose "Removed dnsupdate hook from $REALFILE"
+	return 0
+}
+
+aix_test () {
+	grep '^updateDNS "@sbindir@/dnsupdate' < $REALFILE > /dev/null
 }
 
 #------------------------------------------------------------
@@ -216,14 +229,14 @@ solaris_script () {
 #------------------------------------------------------------
 # HP-UX
 
-add_hook_platform sd
+add_hook_platform hpux
 
-sd_init () {
+hpuxinit () {
 	HOOKFILE=/sbin/rc1.d/S321dnsupdate
 	TMPFILE=$HOOKFILE$TMPSUFFIX
 }
 
-sd_script () {
+hpux_script () {
 	cat <<-'.'
 		if test 0 -ne 0`/usr/sbin/ch_rc -l -p 'DHCP_ENABLE[0]'`
 		then
@@ -346,13 +359,18 @@ macos_insert () {
 	test -r $IPWATCH_PLIST ||
 		/usr/bin/install -o root -m 644 $PLIST_SRC $IPWATCH_PLIST
 	/bin/launchctl load $IPWATCH_PLIST
-	#/bin/launchctl start com.quest.rc.ipwatchd
 }
 
 macos_remove () {
-	#/bin/launchctl stop com.quest.rc.ipwatchd
 	/bin/launchctl unload $IPWATCH_PLIST
-	cmp $IPWATCH_PLIST $PLIST_SRC > /dev/null && rm -f $IPWATCH_PLIST || :
+	if cmp $IPWATCH_PLIST $PLIST_SRC > /dev/null; then
+	    rm -f $IPWATCH_PLIST
+	fi
+	return 0
+}
+
+macos_test () {
+	/bin/launchctl list com.quest.rc.ipwatchd > /dev/null
 }
 
 #------------------------------------------------------------
@@ -361,12 +379,13 @@ macos_remove () {
 QUIET=false
 ERROR=false
 ACTION=unset
-while getopts hiqr f; do
+while getopts hiqrt f; do
     case "$f" in
 	h) ACTION=help;;
 	i) ACTION=insert;;
 	q) QUIET=true;;
 	r) ACTION=remove;;
+	t) ACTION=test;;
 	\?) ERROR=true;;
 	*) 
     esac
@@ -378,35 +397,36 @@ case $ACTION in
     help)   usage help; exit 0;;
 esac
 
+#-- platform is the DHCP client type.
+#   Most of the time, the DHCP client is directly tied to the operating
+#   system, so its name will match the OS name. On Linux, however,
+#   there are at least three DHCP client implementations.
 if test $# -ge 1; then
-    style="$1"
+    platform="$1"
     shift
 else
     case `uname -s` in
-	AIX)    style=aix;;
-	SunOS)  style=solaris;;
-	Darwin) style=macos;;
-	Linux)  style=linux;;
-	HP-UX)  style=sd;;
+	AIX)    platform=aix;;
+	SunOS)  platform=solaris;;
+	Darwin) platform=macos;;
+	Linux)  platform=linux;;
+	HP-UX)  platform=hpux;;
 	*)      echo "Cannot auto-detect hook style (platform `uname -s`)" >&2
 	        ERROR=true
 	        ;;
     esac
 fi
 
-case "$style" in
-    redhat|linux|rpm|suse|deb)
+#-- Convert ambiguous platform names into specific DHCP client types
+case "$platform" in
+    linux)
 	platform=`detect_linux_platform` || die "unknown Linux platform"
 	;;
-    hpux|sd)
-	platform=sd
+    hpux|aix|solaris|macos|dhclient|dhcpcd|odhcpcd)
+	: no change
 	;;
-    aix|solaris|macos)
-	platform=$1
-	;;
-    #-- remember to update 'usage' when more platforms are added
     *)
-	echo "$0: Unrecognised platform '$1'" >&2
+	echo "$0: Unrecognised platform '$platform'" >&2
 	ERROR=true
 	;;
 esac
@@ -418,6 +438,3 @@ fi
 
 ${platform}_init
 ${platform}_${ACTION}
-
-exit 0
-

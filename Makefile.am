@@ -33,7 +33,8 @@ DISTCLEANFILES = $(PP)
 
 SUBST=	sed -e 's,[@]datadir[@],$(datadir),g' \
 	    -e 's,[@]sysconfdir[@],$(sysconfdir),g' \
-	    -e 's,[@]sbindir[@],$(sbindir),g'
+	    -e 's,[@]sbindir[@],$(sbindir),g' \
+	    -e 's,[@]VERSION[@],$(VERSION),g'
 
 dnsupdate-install-hooks: $(srcdir)/dnsupdate-install-hooks.in
 	$(SUBST) <$(srcdir)/dnsupdate-install-hooks.in > $@
