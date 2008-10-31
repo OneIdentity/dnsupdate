@@ -1,10 +1,11 @@
-1.3.1
-    - VAS bug 15691: fix mode of installed hook scripts 
-    - support universal binaries for Mac OS X
+1.3.1.153 [2008-10-31]
+    - VAS bugs 15691, 15690, 15790: install script fixes
+    - VAS bug 15586: support universal binaries for Mac OS X
     - correct conf path to /etc/opt/quest instead of /opt/quest/etc
     - improved diagnostics of config file loading
     - fix seg faults related to -s option and when Mac wakes from sleep
     - better detection of internet tools when building
+    - documentation fixes
 1.3.0.118 [2008-09-29]
     - alter packet format to match MS DNS Client
     - new VGP xlator for group policy control
