@@ -216,7 +216,7 @@ solaris_script () {
 #------------------------------------------------------------
 # HP-UX
 
-add_hook_platform hpux
+add_hook_platform sd
 
 sd_init () {
 	HOOKFILE=/sbin/rc1.d/S321dnsupdate
