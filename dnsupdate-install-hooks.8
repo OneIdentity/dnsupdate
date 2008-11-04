@@ -4,41 +4,40 @@
 dnsupdate-install-hooks \- installs dnsupdate(8) into DHCP client hooks
 .SH SYNOPSIS
 .B dnsupdate-install-hooks
-[\-irqh]
+[\-hiqrt]
 .I platform
 .SH DESCRIPTION
 The
 .B dnsupdate-install-hooks
-utility manages
+utility is called by the packaging system to manage
 dnsupdate(8)'s
 hook into the local system's DHCP client.
 .PP
-The
-.B dnsupdate-install-hooks
-script is run automatically when the quest-dnsupdate package is 
-installed or uninstalled.
+This script can be run by an administrator, but normally it
+is run automatically by the packaging system when the dnsupdate package is 
+installed, upgraded or removed.
 .SS OPTIONS
-.TP
-\-i
-installs the hook
-.TP
-\-r
-removes the hook
 .TP
 \-h
 displays a help message
 .TP
+\-i
+installs the hook
+.TP
 \-q
 quiet mode: verbose messages are suppressed
+.TP
+\-r
+removes the hook
+.TP
+\-t
+tests to see if the hook appears to have already been installed
 .TP
 .I platform
 selects the DHCP client software.
 One of:
-linux
-aix
-hpux
-solaris
-macos.
+aix, hpux, solaris, macos, linux, dhclient, dhcpcd, or odhcpcd.
+Note that 'linux' auto-detects dhclient, dhcpcd or odhcpcd.
 .PP
 Note that running this script with the
 \-i
