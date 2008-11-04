@@ -231,7 +231,7 @@ solaris_script () {
 
 add_hook_platform hpux
 
-hpuxinit () {
+hpux_init () {
 	HOOKFILE=/sbin/rc1.d/S321dnsupdate
 	TMPFILE=$HOOKFILE$TMPSUFFIX
 }
