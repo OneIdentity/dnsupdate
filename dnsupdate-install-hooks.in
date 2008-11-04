@@ -160,7 +160,7 @@ hook_test () {
 	test -n "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
 
 	test -f $HOOKFILE || return 1
-	grep -F "# $hook_tag BEGIN" $HOOKFILE > /dev/null
+	fgrep "# $hook_tag BEGIN" $HOOKFILE > /dev/null
 }
 
 #-- marks platform as using hook_insert/hook_remove
