@@ -124,12 +124,13 @@ hook_remove () {
 	    tagre=`echo "$hook_tag" | sed -e 's/[./]/[&]/g'`
 	    sed -e "/^# $tagre BEGIN\$/,/^# $tagre END\$/d" \
 		$HOOKFILE > $TMPFILE
-	    if echo '#!/bin/sh' | cmp $TMPFILE > /dev/null; then
+	    echo '#!/bin/sh' > $TMPFILE.2
+	    if cmp $TMPFILE.2 $TMPFILE > /dev/null; then
 		rm -f $HOOKFILE
 	    else
 		cat $TMPFILE > $HOOKFILE
 	    fi
-	    rm -f $TMPFILE
+	    rm -f $TMPFILE $TMPFILE.2
 	    verbose "hook removed from $HOOKFILE"
 	else
 	    echo "$0: No hook found in $HOOKFILE" >&2
