@@ -37,12 +37,13 @@ umask 022
 
 #-- Display the program usage
 usage () {
-	echo "usage: $0 [-irqh] [platform]" >&2
+	echo "usage: $0 [-hiqrt] [platform]" >&2
         cat <<-. >&2
 	  -h    Help (display this information)
 	  -i    Installs a DHCP client hook to run dnsupdate on address changes.
 	  -q    Quiet, no informational messages.
 	  -r    Removes the last installed hook.
+	  -t	Test if it looks like a hook is already installed
 
 	  platform   DHCP client type to install hook. Auto-detected if missing.
 		     One of:
@@ -371,7 +372,8 @@ macos_remove () {
 }
 
 macos_test () {
-	/bin/launchctl list com.quest.rc.ipwatchd > /dev/null
+	test -r $IPWATCH_PLIST &&
+	/bin/launchctl list | fgrep com.quest.rc.ipwatchd > /dev/null
 }
 
 #------------------------------------------------------------
@@ -387,8 +389,7 @@ while getopts hiqrt f; do
 	q) QUIET=true;;
 	r) ACTION=remove;;
 	t) ACTION=test;;
-	\?) ERROR=true;;
-	*) 
+	*) ERROR=true;;
     esac
 done
 shift `expr $OPTIND - 1`
