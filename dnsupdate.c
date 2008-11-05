@@ -1170,9 +1170,12 @@ main(int argc, char **argv)
 	char full_hostname[DNS_MAXNAME];
 	struct hostent *host = NULL;
 
-	if (gethostname(local_hostname, sizeof local_hostname) < 0)
+	if (gethostname(local_hostname, sizeof local_hostname) < 0) {
 	    warn("gethostname");
-	else
+	    *local_hostname = '\0';
+	}
+
+	if (*local_hostname)
 	    host = gethostbyname(local_hostname);
 
 	if (host && host->h_name) 
@@ -1283,6 +1286,7 @@ main(int argc, char **argv)
 	if (user_servers)
 	    server_list = list_dup(user_servers);
 
+	extend_servers_on_fail = 0;
 	if (list_is_empty_or_null(server_list)) {
 	    /* Perform an SOA query on the record name we want to update. 
 	     * The primary server from the SOA response becomes the 
@@ -1296,10 +1300,8 @@ main(int argc, char **argv)
 		extend_servers_on_fail = 1;
 		if (!auth_domain)
 		    auth_domain = auth_domainbuf;
-	    } else {
+	    } else
 		warnx("Cannot find SOA record for %s\n", name);
-		extend_servers_on_fail = 0;
-	    }
 	}
 
 	/* If we still don't have a list of servers, ask VAS for DCs */
