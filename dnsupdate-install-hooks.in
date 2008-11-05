@@ -70,7 +70,7 @@ verbose () {
 
 #-- Clean up temporary files on exit
 cleanup () {
-	test -n "$TMPFILE" && rm -f "$TMPFILE"
+	test -z "$TMPFILE" || rm -f "$TMPFILE"
 }
 trap cleanup 0 1 2
 
