@@ -9,7 +9,7 @@
 /*
  * DNS TSIG is described in RFC 2845.
  * Generally, a DNS packet is formed, and signed by adding an
- * extract resource record to the end. The signature is checked
+ * extra resource record to the end. The signature is checked
  * by removing the record and recomputing/checking the signature.
  * Some extra mayhem is required to tack on TSIG 'variables' which
  * act to bind the packet to a time context.
