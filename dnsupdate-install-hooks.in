@@ -70,7 +70,11 @@ verbose () {
 
 #-- Clean up temporary files on exit
 cleanup () {
-	test -z "$TMPFILE" || rm -f "$TMPFILE"
+    if test -n "$TMPHOOKFILE"; then
+    	rm -f "$TMPHOOKFILE"
+    	rm -f "$TMPHOOKFILE.2"
+    fi
+    return 0
 }
 trap cleanup 0 1 2
 
@@ -85,7 +89,7 @@ trap cleanup 0 1 2
 #  - Set the following vars
 #		$HOOKFILE	-- script file to create or append 
 #                                  script fragment to
-#		$TMPFILE	-- temporary place for building new hookfile
+#		$TMPHOOKFILE	-- temporary place for building new hookfile
 #  - Define a function "${PLAT}_script ()" that emits a script fragment
 #       The output of the ${PLAT}_script must not contain '#!'
 #  - Call "add_hook_platform ${PLAT}"
@@ -93,10 +97,10 @@ trap cleanup 0 1 2
 # hook_insert($PLAT)
 # Installs the output of ${PLAT}_script into $HOOKFILE.
 # $HOOKFILE is created executable with '#!/bin/sh' if it doesn't exist.
-# $TMPFILE is created to store working data. It is deleted at exit.
+# $TMPHOOKFILE is created to store working data. It is deleted at exit.
 hook_insert () {
 	test $# -eq 1 || die "hook_insert: missing argument"
-	test -n "$TMPFILE" || die "hook_insert $1: TMPFILE not set"
+	test -n "$TMPHOOKFILE" || die "hook_insert $1: TMPHOOKFILE not set"
 	test -n "$HOOKFILE" || die "hook_insert $1: HOOKFILE not set"
 
 	if [ -f $HOOKFILE ]; then
@@ -113,25 +117,28 @@ hook_insert () {
 # Removes previously inserted output of ${PLAT}_script from $HOOKFILE.
 # That is, reverses hook_insert($PLAT)
 # $HOOKFILE is deleted if the result would be that it just contains '#!/bin/sh'
-# $TMPFILE is used to store working data.
+# $TMPHOOKFILE is used to store working data.
 hook_remove () {
 	test $# -eq 1 || die "hook_remove: missing argument"
-	test -n "$TMPFILE" || die "hook_remove $1: TMPFILE not set"
+	test -n "$TMPHOOKFILE" || die "hook_remove $1: TMPHOOKFILE not set"
 	test -n "$HOOKFILE" || die "hook_remove $1: HOOKFILE not set"
 
 	test -f $HOOKFILE || return 0
 
 	if hook_test $1; then
+	    # Make a regular expression for the tag text, which
+	    # may include dots and slashes.
 	    tagre=`echo "$hook_tag" | sed -e 's/[./]/[&]/g'`
 	    sed -e "/^# $tagre BEGIN\$/,/^# $tagre END\$/d" \
-		$HOOKFILE > $TMPFILE
-	    echo '#!/bin/sh' > $TMPFILE.2
-	    if cmp $TMPFILE.2 $TMPFILE >/dev/null 2>/dev/null; then
+		< $HOOKFILE > $TMPHOOKFILE
+	    # If only the shebang is left, then delete the hookfile
+	    echo '#!/bin/sh' > $TMPHOOKFILE.2
+	    if cmp $TMPHOOKFILE.2 $TMPHOOKFILE >/dev/null 2>/dev/null; then
 		rm -f $HOOKFILE
 	    else
-		cat $TMPFILE > $HOOKFILE
+		cat $TMPHOOKFILE > $HOOKFILE
 	    fi
-	    rm -f $TMPFILE $TMPFILE.2
+	    rm -f $TMPHOOKFILE $TMPHOOKFILE.2
 	    verbose "hook removed from $HOOKFILE"
 	else
 	    echo "$0: No hook found in $HOOKFILE" >&2
@@ -176,23 +183,23 @@ add_hook_platform () {
 
 aix_init () {
 	REALFILE=/etc/dhcpcd.ini
-	TMPFILE=/etc/dhcpcd.ini$TMPSUFFIX
+	TMPHOOKFILE=/etc/dhcpcd.ini$TMPSUFFIX
 }
 
 aix_insert () {
 	sed -e '/^updateDNS/s/^/##quest-dnsupdate##/' \
-	    < $REALFILE > $TMPFILE
+	    < $REALFILE > $TMPHOOKFILE
 	echo "updateDNS \"@sbindir@/dnsupdate '%.0s%.0s%s%.0s'\"" \
-	    >> $TMPFILE
-	cat < $TMPFILE > $REALFILE
+	    >> $TMPHOOKFILE
+	cat < $TMPHOOKFILE > $REALFILE
 	verbose "Installed dnsupdate hook into $REALFILE"
 	return 0
 }
 
 aix_remove () {
 	grep -v '^updateDNS "@sbindir@/dnsupdate' < $REALFILE | 
-	    sed -e 's/^##quest-dnsupdate##//' > $TMPFILE
-	cat < $TMPFILE > $REALFILE
+	    sed -e 's/^##quest-dnsupdate##//' > $TMPHOOKFILE
+	cat < $TMPHOOKFILE > $REALFILE
 	verbose "Removed dnsupdate hook from $REALFILE"
 	return 0
 }
@@ -213,7 +220,7 @@ solaris_init () {
 	       ;;
 	esac
 	HOOKFILE=/etc/dhcp/eventhook
-	TMPFILE=${HOOKFILE}${TMPSUFFIX}
+	TMPHOOKFILE=${HOOKFILE}${TMPSUFFIX}
 }
 
 solaris_script () {
@@ -235,7 +242,7 @@ add_hook_platform hpux
 
 hpux_init () {
 	HOOKFILE=/sbin/rc1.d/S321dnsupdate
-	TMPFILE=$HOOKFILE$TMPSUFFIX
+	TMPHOOKFILE=$HOOKFILE$TMPSUFFIX
 }
 
 hpux_script () {
@@ -282,7 +289,7 @@ dhclient_init () {
 	else
 		HOOKFILE=/etc/dhclient-exit-hooks
 	fi
-	TMPFILE=$HOOKFILE$TMPSUFFIX
+	TMPHOOKFILE=$HOOKFILE$TMPSUFFIX
 }
 
 # Linux dhclient hook based on dhclient-script(8) manpage
@@ -312,7 +319,7 @@ odhcpcd_init () {
 	else
 		HOOKFILE=/etc/dhcpc/dhcpcd.exe
 	fi
-	TMPFILE=$HOOKFILE$TMPSUFFIX
+	TMPHOOKFILE=$HOOKFILE$TMPSUFFIX
 }
 
 # Based on dhcpcd(8) manpage
@@ -336,7 +343,7 @@ add_hook_platform dhcpcd
 
 dhcpcd_init () {
 	HOOKFILE=/etc/sysconfig/network/if-up.d/quest-dnsupdate
-	TMPFILE=$HOOKFILE$TMPSUFFIX
+	TMPHOOKFILE=$HOOKFILE$TMPSUFFIX
 }
 
 dhcpcd_script () {
