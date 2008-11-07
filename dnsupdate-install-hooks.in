@@ -126,7 +126,7 @@ hook_remove () {
 	    sed -e "/^# $tagre BEGIN\$/,/^# $tagre END\$/d" \
 		$HOOKFILE > $TMPFILE
 	    echo '#!/bin/sh' > $TMPFILE.2
-	    if cmp $TMPFILE.2 $TMPFILE > /dev/null; then
+	    if cmp $TMPFILE.2 $TMPFILE >/dev/null 2>/dev/null; then
 		rm -f $HOOKFILE
 	    else
 		cat $TMPFILE > $HOOKFILE
@@ -365,7 +365,7 @@ macos_insert () {
 
 macos_remove () {
 	/bin/launchctl unload $IPWATCH_PLIST
-	if cmp $IPWATCH_PLIST $PLIST_SRC > /dev/null; then
+	if cmp $IPWATCH_PLIST $PLIST_SRC >/dev/null 2>/dev/null; then
 	    rm -f $IPWATCH_PLIST
 	fi
 	return 0
