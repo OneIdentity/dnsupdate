@@ -1252,6 +1252,7 @@ main(int argc, char **argv)
 	    utype = DNS_TYPE_A;
 	    udata = ipaddr;
 	    udatalen = sizeof ipaddr;
+	    auth_domain = user_auth_domain;
 	    break;
 	case 1:
 	    /* Logic for whether or not we update PTRs */
@@ -1267,6 +1268,7 @@ main(int argc, char **argv)
 	    utype = DNS_TYPE_PTR;
 	    udata = hostname;
 	    udatalen = -1;
+	    auth_domain = NULL;
 	    break;
 	}
 
@@ -1278,8 +1280,6 @@ main(int argc, char **argv)
 	/*
 	 * Step 2: Figure out which nameserver to update against
 	 */
-
-	auth_domain = user_auth_domain;
 
 	/* The user may have supplied a list of nameservers with -n */
 	server_list = NULL;
