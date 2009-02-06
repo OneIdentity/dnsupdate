@@ -63,7 +63,7 @@ case $1 in
 	    } > $CONFTMP.3
 	    cat $CONFTMP.3 > $CONF
 	fi
-#	rm -f $CONFTMP.2 $CONFTMP.3
+	rm -f $CONFTMP.2 $CONFTMP.3
 	;;
     *)
 	echo "unknown argument '$1'" >&2
