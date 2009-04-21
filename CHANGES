@@ -1,3 +1,15 @@
+1.3.3 [2009-04-21]
+    - Work around KRB5_FCC_INTERNAL error on Mac OS 10.5 when run from
+      launchd (RC bug #663).
+    - Don't use the "-a" auth domain for PTR updates (VAS bug #15832)
+    - Portability bug fixes for HP-UX and Solaris
+      (VAS bugs #15690, #15811, #15812, #15881)
+    - Fixed uninstall problem on Mac OS X (VAS bug #15813)
+    - Fix handling if gethostname() fails
+    - Clean up temporary files (RC bug #639)
+    - Don't explicitly link to libgcc_s
+    - Add documentation for '-t' (test hook) option
+
 1.3.1.153 [2008-10-31]
     - VAS bugs 15691, 15690, 15790: install script fixes
     - VAS bug 15586: support universal binaries for Mac OS X
