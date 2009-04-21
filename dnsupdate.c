@@ -602,6 +602,16 @@ fail:
     return rcode;
 }
 
+static void macos_krb5_ccache_hack(void) {
+#ifdef __APPLE__
+    /* Work around a bug in QAS < 4.x (well, Heimdal) where we'd
+       always get KRB5_FCC_INTERNAL from the API ccache code
+       when being executed by launchd.
+       RC bug #663. */
+    setenv("KRB5CCNAME", "MEMORY:", 0); /* Does not override if set */
+#endif /* __APPLE__ */
+}
+
 /* 
  * Negotiate a GSS TKEY, and then call update()
  * Returns 0 on success, -1 on internal failure, otherwise a DNS rcode.
@@ -651,6 +661,8 @@ gss_update(vas_ctx_t *ctx, vas_id_t *id, int s,
 
     if (verbose)
 	fprintf(stderr, "target service: %s\n", server_spn);
+
+    macos_krb5_ccache_hack();
 
     /* Perform the GSS rounds */
     gssctx = GSS_C_NO_CONTEXT;
