@@ -3,7 +3,7 @@
 AUTOMAKE_OPTIONS=       foreign
 
 VAS_CFLAGS=		`$(VASCONFIG) --cflags vas`
-VAS_LIBS=		`$(VASCONFIG) --libs vas`
+VAS_LIBS=		`$(VASCONFIG) --libs vas | sed -e 's/-lgcc_s//g'`
 
 sbin_PROGRAMS = 	dnsupdate
 libexec_SCRIPTS =	dnsupdate-install-hooks
