@@ -593,12 +593,12 @@ const char *
 dns_rcode_name(uint16_t rcode)
 {
     static struct { uint16_t rcode; const char *desc; } desc[] = {
-	{ DNS_NOERROR,  "No error" },
-	{ DNS_FORMERR,  "Format error" },
-	{ DNS_SERVFAIL, "Server failure" },
-	{ DNS_NXDOMAIN, "Name error" },
-	{ DNS_NOTIMP,   "Not implemented" },
-	{ DNS_REFUSED,  "Refused" },
+	{ DNS_NOERROR,  "no error" },
+	{ DNS_FORMERR,  "format error" },
+	{ DNS_SERVFAIL, "server failure" },
+	{ DNS_NXDOMAIN, "name error" },
+	{ DNS_NOTIMP,   "not implemented" },
+	{ DNS_REFUSED,  "refused" },
 	{ DNS_YXDOMAIN,	"unwanted domain exists" },
 	{ DNS_YXRRSET,	"unwanted RRs exist" },
 	{ DNS_NXRRSET,	"wanted RRs don't exist" },
