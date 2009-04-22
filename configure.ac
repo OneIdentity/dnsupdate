@@ -29,7 +29,7 @@ if test x"$enable_universal_binary" != x"no"; then
     case $host in *-apple-darwin*)
         mysave_CFLAGS="$CFLAGS"
         mysave_CFLAGS="$LDFLAGS"
-        CFLAGS="$CFLAGS -arch ppc -arch i386"
+        CFLAGS="$CFLAGS -arch ppc -arch i386 -mmacosx-version-min=10.4"
         LDFLAGS="$LDFLAGS -arch ppc -arch i386"
 	if test x"$XCODE_SELECT" != x"false"; then
             xcodedir=`"$XCODE_SELECT" -print-path`
