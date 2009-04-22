@@ -48,7 +48,7 @@ package: dnsupdate.pp $(PP)
 	$(MAKE) install DESTDIR=$$DESTDIR; \
 	$(PP) \
 	       --destdir=$$DESTDIR \
-	       --install-script=inst.sh \
+	       --install-script=install.sh \
 	    $(srcdir)/dnsupdate.pp \
 	       version=$(VERSION) \
 	       sbindir=$(sbindir) \
