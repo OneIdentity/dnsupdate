@@ -26,19 +26,6 @@ com/DTDs/PropertyList-1.0.dtd">
 
 	<key>ServiceIPC</key>
 	<true/>
-
-	<key>ChangeProgram</key>
-	<string>@sbindir@/dnsupdate</string>
-
-	<key>GlobalIPv4Key</key>
-	<string>State:/Network/Global/IPv4</string>
-
-	<key>PrimaryIPv4KeyPattern</key>
-	<string>State:/Network/Service/%/IPv4</string>
-
-	<key>ChangeDelay</key>
-	<real>30</real>
-
 </dict>
 </plist>
 

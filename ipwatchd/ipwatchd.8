@@ -5,39 +5,75 @@ ipwatchd \- runs a program when the primary IP address changes
 .SH SYNOPSIS
 .B ipwatchd
 [\-d]
-.RI [ ChangeProgram ]
+.RI [\-o name = value ]
+.RI [ change_program ]
 .SH DESCRIPTION
 The
 .B ipwatchd
 daemon watches MacOS X's dynamic System Configuration state for interface
 address changes, and runs the given program with the new IP address.
 .PP
-The
-.B ipwatchd
-utility is intended to be started by the
+This program is intended to be run and managed by the
 launchd(8)
 daemon.
-.SS OPTIONS
+.PP
+The
+.B ipwatch
+daemon watches the dynamic store string at
+.I State:/Network/Global/IPv4[PrimaryService]
+to determine what the current "primary" interface number is
+(For example, "0", which is usually en0).
+From this it watches the primary service's IP address(es) at
+.I State:/Network/Service/$PrimaryService/IPv4[Addresses]
+and uses the first IP address as the primary address of the host.
+.PP
+When the primary IP address change is detected,
+.B ipwatchd
+then waits for a period of
+quiet (the "change delay") before running the
+.I change_program
+with the new IP address as its first and only argument.
+.SH OPTIONS
 .TP
 .RI \-d
 This option
-enables debug (verbose) mode
+enables debug (verbose) mode.
+It is equivalent to
+.B \-oDebug=true
 .TP
-.I ChangeProgram
-This argument specifies the program to execute. 
+.RI \-o name = value
+Sets a configuration option by name as described in the section below.
+.TP
+.I change_program
+This argument is the same as 
+.BI \-oChangeProgram= change_program
+.SS "Configuration Options"
+The \-o option can be used to set named options.
+Unknown options are ignored.
+Known options are:
+.TP
+.RI Debug \ (boolean)
+Enables debug messages sent to standard error.
+.TP
+.RI ChangeProgram \ (string)
+The program to execute when the IP address changes. 
 The executed program is given the new IP address as its first argument.
-.PP
-If
-.B ipwatchd
-is run by
-.B launchd
-and no
-.I ChangeProgram
-argument is provided, then
-.B ipwatchd
-will look for and use a string-valued configuration key named ChangeProgram
-passed to it by
-.BR ipwatchd .
+This defaults to /opt/quest/sbin/dnsupdate
+.TP
+.RI GlobalIPv4Key \ (string)
+The name of the IPv4 key in the dynamic store.
+Defaults to "State:/Network/Global/IPv4"
+.TP
+.RI PrimaryIPv4KeyPattern \ (string)
+The pattern to use when detecting interfaces.
+The "%" character in this string is replaced with the primary service ID.
+Defaults to "State:/Network/Service/%/IPv4".
+.TP
+.RI ChangeDelay \ (float)
+The delay in seconds to wait for quiescence after detecting an IP address 
+and before running the ChangeProgram.
+Values of zero or lower are interpreted as meaning immediate application.
+Defaults to 30 seconds.
 .SH FILES
 .I /Library/LaunchDaemons/com.quest.rc.ipwatchd.plist
 .SH "SEE ALSO"
@@ -45,4 +81,4 @@ dnsupdate(8),
 launchd(8),
 .I http://rc.vintela.com/topics/ddns/
 .SH AUTHORS
-David Leonard, Quest Software, Inc.
+Quest Software, Inc.

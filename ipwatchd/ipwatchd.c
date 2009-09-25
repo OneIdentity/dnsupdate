@@ -55,6 +55,64 @@ static CFStringRef PrimaryService = NULL; /* "0" */
 static CFStringRef PrimaryIPv4Key = NULL; /* "State:/Network/Service/0/IPv4" */
 static CFStringRef PrimaryAddress = NULL; /* "1.2.3.4" */
 
+static int
+to_boolean(const char *s)
+{
+    if (strcasecmp(s, "true") == 0 || 
+        strcasecmp(s, "on") == 0 || 
+        strcasecmp(s, "yes") == 0)
+        return TRUE;
+    if (strcasecmp(s, "false") == 0 || 
+        strcasecmp(s, "off") == 0 ||
+        strcasecmp(s, "no"))
+        return FALSE;
+    warnx("unknown boolean '%.100s'", s);
+    return FALSE;
+}
+
+/* Sets an option named name to the value. Returns TRUE on success */
+static int
+set_option(const char *name, const char *value)
+{
+    if (debug)
+        fprintf(stderr, "set_option %s = %s\n", name, value);
+    if (strcmp(name, "ChangeProgram") == 0)
+        ChangeProgram = value;
+    else if (strcmp(name, "GlobalIPv4Key") == 0)
+        GlobalIPv4Key = value;
+    else if (strcmp(name, "PrimaryIPv4KeyPattern") == 0)
+        PrimaryIPv4KeyPattern = value;
+    else if (strcmp(name, "ChangeDelay") == 0)
+        ChangeDelay = atof(value);
+    else if (strcmp(name, "Debug") == 0)
+        debug = to_boolean(value);
+    else
+        warnx("ignoring unknown option '%.100s'", name);
+    return TRUE;
+}
+
+/* Split the "name=value" string on the first '=' and set the option */
+static int
+set_option_from_arg(const char *arg)
+{
+    char opt_name[100];
+    int i;
+
+    /* Copy the beginning of arg up to the '=' into opt_name[] */
+    for (i = 0; arg[i] != '='; i++) {
+        if (arg[i] == 0) {
+            warnx("missing '=' in -o argument '%.100s'", arg);
+            return FALSE;
+        }
+        if (i >= sizeof opt_name - 1) {
+            warnx("option name too long");
+            return FALSE;
+        }
+        opt_name[i] = arg[i];
+    }
+    opt_name[i] = 0;
+    return set_option(opt_name, arg + i);
+}
 
 int
 main(int argc, char * const argv[])
@@ -64,22 +122,28 @@ main(int argc, char * const argv[])
 	extern int optind;
 	CFStringRef key;
 
-	while ((ch = getopt(argc, argv, "d")) != -1)
+	while ((ch = getopt(argc, argv, "do:")) != -1)
 		switch (ch) {
 		case 'd':
-		    debug = TRUE;
+		    set_option("Debug", "true");
 		    break;
+                case 'o':
+                    if (!set_option_from_arg(optarg))
+                        error = 1;
+                    break;
 		case '?':
 		    error = 1;
 		    break;
 		}
 	if (optind < argc)
-		ChangeProgram = argv[optind++];
+                set_option("ChangeProgram", argv[optind++]);
 
 	if (optind < argc)
 		error = 1;
 	if (error) {
-		fprintf(stderr, "usage: %s [-d] [ChangeProgram]\n", argv[0]);
+		fprintf(stderr, 
+                        "usage: %s [-d] [-o opt=value] [ChangeProgram]\n", 
+                        argv[0]);
 		exit(1);
 	}
 
@@ -147,7 +211,7 @@ checkin()
 	}
 
 	if (!(response = launch_msg(checkin))) {
-		warnx("launch_msg");
+		warn("launch_msg");
 		return;
 	}
 	if (launch_data_get_type(response) == LAUNCH_DATA_ERRNO) {
@@ -159,28 +223,6 @@ checkin()
 		warnx("launch check-in failed: bad response");
 		return;
 	}
-
-	/* Extract the configuration parameters */
-
-	param = launch_data_dict_lookup(response, "Debug");
-	if (param && !debug)
-		debug = launch_data_get_bool(param);
-
-	param = launch_data_dict_lookup(response, "ChangeProgram");
-	if (param && !ChangeProgram)
-		ChangeProgram = launch_data_get_string(param);
-
-	param = launch_data_dict_lookup(response, "GlobalIPv4Key");
-	if (param && !GlobalIPv4Key)
-		GlobalIPv4Key = launch_data_get_string(param);
-
-	param = launch_data_dict_lookup(response, "PrimaryIPv4KeyPattern");
-	if (param && !PrimaryIPv4KeyPattern)
-		PrimaryIPv4KeyPattern = launch_data_get_string(param);
-
-	param = launch_data_dict_lookup(response, "ChangeDelay");
-	if (param && ChangeDelay < 0)
-		ChangeDelay = launch_data_get_real(param);
 }
 
 /* Returns true if two string pointers are either both NULL, or the same text.
