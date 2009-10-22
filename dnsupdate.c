@@ -1349,10 +1349,14 @@ main(int argc, char **argv)
 
 	/* Check for non FQDNs and top-level domain names */
 	if (count_dots(auth_domain) < 1) {
-	    warnx("auth domain '%.255s' is top-level", auth_domain);
+	    if (verbose)
+		warnx("auth domain '%.255s' is top-level", auth_domain);
+
 	    if (config_get_int("UpdateTopLevelDomainZones", 0) == 0) {
-		if (verbose)
-		    warnx("Refusing to update top level domain zones\n");
+		/* Be silent unless TLD updates are explicitly enabled. */
+		if (config_is_set("UpdateTopLevelDomainZones"))
+		    warnx("Refusing to update top level domain zone \"%.255s\"",
+			    auth_domain);
 		continue;
 	    }
 	}

@@ -98,6 +98,17 @@ config_get_string(const char *key, const char *def_value)
     return config->value;
 }
 
+/* Returns nonzero if a configuration setting is set explicitly,
+ * or zero if it is not set.
+ */
+int
+config_is_set(const char *key)
+{
+    if (config_get(key))
+	return 1;
+    return 0;
+}
+
 /*------------------------------------------------------------
  * Private config functions
  */
