@@ -16,8 +16,8 @@ dnsupdate \- securely update domain name records (DNS)
 .SH DESCRIPTION
 The
 .B dnsupdate
-utility authenticates to an Active Directory DNS server
-as a computer object, and updates its IP address.
+utility authenticates to an Microsoft DNS server
+as a computer object, and updates its IP address record.
 .PP
 The
 .B dnsupdate
@@ -27,7 +27,7 @@ dnsupdate-install-hooks(8).
 .SS OPTIONS
 .TP
 .RI \-a\  auth-domain
-specifies the authoritative domain of the hostname to use when updating.
+Specifies the authoritative domain of the hostname to use when updating.
 This is normally the "parent" domain of the hostname.
 For example, the authoritative domain of host.example.com
 is typically example.com.
@@ -35,19 +35,19 @@ The default is to determine the authoritative domain by performing
 an SOA query.
 .TP
 .RI \-C\  client-spn
-specifies the Kerberos service principal name of the local host
+The Kerberos service principal name of the local host
 used in secure updates.
 The default is "host/".
 .TP
 .RI \-h\  hostname
-specifies the fully qualified domain name of the entry to update.
+The fully qualified domain name of the entry to update.
 The default, when using secure updates, is to the hostname 
 of the computer object corresponding to the system host principal.
 When using unsecure updates, the default hostname is obtained from the 
-operating system, and affixed if necessary by the resolver configuration.
+operating system, and suffixed if necessary by the resolver configuration.
 .TP
 \-I
-use the IETF's
+Use the IETF's
 .I gss-tsig
 algorithm name when securely updating (see RFC 3654).
 The default is to use
@@ -55,7 +55,7 @@ The default is to use
 which is understood by Active Directory.
 .TP
 \-N
-disable secure authentication.
+Disable secure authentication.
 This option is the same as specifying \-o\ UpdateSecurityLevel=16.
 .TP
 \-r
@@ -68,7 +68,7 @@ Overrides an option setting.
 See the section on Configuration Options, below.
 .TP
 .RI \-s\  nameserver
-specifies a whitespace-separated list of nameserver 
+A whitespace-separated list of nameservers
 to send the update requests to.
 The default is to try the primary authoritative nameserver associated with the 
 authoritative domain,
@@ -76,15 +76,15 @@ and if that fails, to try all the nameservers that serve the
 authoritative domain, in order.
 .TP
 .RI \-S\  server-spn
-specifies the Kerberos service principal name of the nameserver
+The Kerberos service principal name of the nameserver
 to use in secure updates.
 This typically only makes sense when the \-s option is used.
 By default, the nameserver's service principal name is computed by 
 prefixing its fully qualified domain name with "dns/".
 .TP
 .RI \-t\  ttl
-specifies the updated records cache lifetime, in seconds.
-If not provided, defaults to
+The updated records' cache lifetime, in seconds.
+Defaults to
 fifteen minutes.
 Note that this value is
 .B not
@@ -94,10 +94,11 @@ This option is the same as specifying
 .RI \-o\ RegistrationTtl= ttl .
 .TP
 \-v
-increases the verbosity of messages written to standard error.
+Increases the verbosity of messages written to standard error.
+Provide this option multiple times to increase verbosity.
 .TP
 \-V
-displays the version information of the program, then exits.
+Displays the version information of the program, then exits.
 .SS "CONFIGURATION OPTIONS"
 The following options are read from the configuration file,
 .IR /etc/opt/quest/dnsupdate.conf ,
