@@ -1,7 +1,14 @@
 /* (c) 2008, Quest Software Inc. All rights reserved. */
 /*
- * Tests the DNS decoder by reading a single packet on stdin
- * and attempting to dumping the output.
+ * Exercise the DNS decoder by reading a single payload on stdin
+ * and attempting to dump the output.
+ *
+ * The input can either be raw binary (use the -r flag), or it can
+ * be the output of hexdump that running dnsupdate with -vvv flags will
+ * display.
+ *
+ * The -v flag passed to this program is only useful for debugging
+ * the hex input decoder.
  */
 
 #include "common.h"
@@ -150,7 +157,7 @@ main(int argc, char **argv)
         error = 1;
 
     if (error) {
-	fprintf(stderr, "usage: %s [-v] [file]\n", argv[0]);
+	fprintf(stderr, "usage: %s [-rv] [file]\n", argv[0]);
 	exit(1);
     }
 
