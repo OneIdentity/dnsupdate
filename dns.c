@@ -369,9 +369,10 @@ rd_name(struct dns_msg *msg, char *buf, size_t bufsz, int canon_only)
 		rd_error("too much compression");
 	    dns_rd_data_raw(msg, &b2, sizeof b2);
 	    offset = ((b << 8) | b2) & 0x3fff;
-	    if (!pos_save)
+	    if (!pos_save) {
 		pos_save = msg->pos;
-	    remain_save = msg->remain[msg->depth];
+	        remain_save = msg->remain[msg->depth];
+            }
 	    if (offset < msg->pos)
 		msg->remain[msg->depth] += msg->pos - offset;
 	    else if (offset - msg->pos > msg->remain[msg->depth])
