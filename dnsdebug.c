@@ -373,6 +373,12 @@ dumpmsg(struct dns_msg *msg)
 	}
     }
 
+    len = msg->remain[msg->depth];
+    if (len != 0) {
+        fprintf(stderr, "    %s:\n", "(LEFTOVER)");
+        dumphex((char *)msg->data + msg->pos, len);
+    }
+
     dns_msg_setbuf(msg, bufsave, bufszsave);
     fflush(stdout);
 }
