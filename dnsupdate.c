@@ -1097,10 +1097,12 @@ main(int argc, char **argv)
 	fprintf(stderr, "libvas %s\n", vas_product_version(0, 0, 0));
     }
 
+#if enable_lovecraftian_horror
     if (verbose > 1) { 
 	void vas_log_init(int, int, int, void *, int);
 	vas_log_init(3, 9, 3, 0, 0);
     }
+#endif
 
     /*
      * Sanity check the options 
