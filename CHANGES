@@ -1,5 +1,5 @@
 
-1.3.4 [2010-03-??]
+1.3.4 [2010-06-10]
     - bug 763: Symbol not found: _vas_log_init, when using QAS 4.0
     - bug 626: fix "read/write beyond bounds" error with some packets
 
