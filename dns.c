@@ -459,7 +459,10 @@ wr_label(struct dns_msg *msg, int len, const char *name)
 {
     unsigned char b;
 
-    assert(len < 32);
+    if (len > 63)
+        errx(1, "Refusing to write label \"%s\" "
+                "which is longer than 63 characters", name);
+
     b = (unsigned char)len;
     dns_wr_data_raw(msg, &b, sizeof b);
     if (len)
