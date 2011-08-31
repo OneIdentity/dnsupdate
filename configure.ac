@@ -77,6 +77,19 @@ AC_SUBST([WGET])
 AC_PATH_PROG([CURL], [curl], [false])
 AC_SUBST([CURL])
 
+# In lieu of libtool knowing how to link properly, we need to tell AIX's
+# linker to link dynamically, to avoid statically linking libvas.
+case "$ac_cv_host" in
+  *-*-aix*)
+    old_LDFLAGS="$LDFLAGS"
+    LDFLAGS="-Wl,-brtl $LDFLAGS"
+    AC_MSG_CHECKING([whether -Wl,-brtl works in LDFLAGS])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([int main(void) { return 0; }])],
+                   [AC_MSG_RESULT([yes])],
+                   [AC_MSG_RESULT([no])
+                    LDFLAGS="$old_LDFLAGS"])
+esac
+
 AC_CHECK_FUNC([getaddrinfo])
 AC_CHECK_FUNC([vsyslog])
 AC_CHECK_FUNC([getopt], [], [AC_LIBOBJ([getopt])])
