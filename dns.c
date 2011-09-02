@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "dns.h"
+#include "err.h"
 
 /*
  * Functions for decoding DNS packets (RFC 1035)
