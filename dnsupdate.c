@@ -1462,3 +1462,5 @@ main(int argc, char **argv)
     /* Exit true if we registered the A address */
     exit(a_registered ? 0 : 1);
 }
+
+/* vim: set ts=8 sw=4 noet: */
