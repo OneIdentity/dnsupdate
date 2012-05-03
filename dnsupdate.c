@@ -993,7 +993,11 @@ main(int argc, char **argv)
     char *user_auth_domain = NULL;
     char *auth_domain;
     size_t udatalen;
-    char reverse[4 * 4 + sizeof "IN-ADDR.ARPA"];
+    /* This doesn't appear to need the root '.' at the end.
+     * It's used for both IPv4 (in-addr.arpa) and IPv6 (ip6.arpa). */
+    char reverse[sizeof(
+	    "0.0.0.0." "0.0.0.0." "0.0.0.0." "0.0.0.0."
+	    "0.0.0.0." "0.0.0.0." "0.0.0.0." "0.0.0.0." "ip6.arpa")];
     char **domain_list;
     char **ns_list;
 
