@@ -85,6 +85,12 @@ desc_lookup(const struct desc *desc, uint16_t value)
     return descbuf;
 }
 
+const char *
+dns_type_str(uint16_t type)
+{
+    return desc_lookup(rrtype_desc, type);
+}
+
 void
 dumphex(const void *buf, size_t len)
 {

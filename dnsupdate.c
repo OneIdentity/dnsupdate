@@ -1426,10 +1426,8 @@ main(int argc, char **argv)
 	}
 
 	if (verbose > 1)
-	    fprintf(stderr, "starting attempt to register %s %s\n", 
-		    utype == DNS_TYPE_A ? "A" :
-		    utype == DNS_TYPE_AAAA ? "AAAA" :
-		    "PTR", name);
+	    fprintf(stderr, "starting attempt to register %s %s\n",
+		    dns_type_str(utype), name);
 
 	/*
 	 * Step 2: Figure out which nameserver to update against
@@ -1555,7 +1553,7 @@ main(int argc, char **argv)
 		    fprintf(stderr, "attempting %s update %s %s\n", 
 			    secure ? "secure" : "unsecure",
 			    name,
-			    utype == DNS_TYPE_A ? "A" : "PTR");
+			    dns_type_str(utype));
 
 		if (secure) {
 		    ret = gss_update(vas_ctx, local_id, s, server, name, 
@@ -1576,7 +1574,7 @@ main(int argc, char **argv)
 			 security_level == SECURITY_ONLY_UNSECURE || secure))
 		    fprintf(stderr, "%s %s update %s: %s\n", server,
 			    secure ? "secure" : "unsecure",
-			    utype == DNS_TYPE_A ? "A" : "PTR",
+			    dns_type_str(utype),
 			    dns_rcode_name(ret));
 	    }
 	    dnstcp_close(&s);
@@ -1588,7 +1586,7 @@ main(int argc, char **argv)
 	if (verbose)
 	    fprintf(stderr, "update of %s %s %s\n",
 		    name, 
-		    utype == DNS_TYPE_A ? "A" : "PTR",
+		    dns_type_str(utype),
 		    (ret == 0) ? "succeeded" : "failed");
 	list_free(ns_list);
     }
