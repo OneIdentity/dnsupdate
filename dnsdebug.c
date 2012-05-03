@@ -50,6 +50,7 @@ static struct desc rrtype_desc[] = {
     {  14, "MINFO" },
     {  15, "MX" },
     { DNS_TYPE_TXT, "TXT" },
+    { DNS_TYPE_AAAA, "AAAA" },
     { DNS_TYPE_TKEY, "TKEY" },
     { DNS_TYPE_TSIG, "TSIG" },
     { 252, "AXFR" },
