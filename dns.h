@@ -71,7 +71,7 @@ struct dns_rr {
 #define DNS_TYPE_NULL	10
 #define DNS_TYPE_PTR	12
 #define DNS_TYPE_TXT	16
-#define DNS_TYPE_AAAA	28 /* RFC 3596 */
+#define DNS_TYPE_AAAA	28
 #define DNS_TYPE_TKEY	249
 #define DNS_TYPE_TSIG	250
 #define DNS_TYPE_ANY	255	/* only valid in queries/matching */

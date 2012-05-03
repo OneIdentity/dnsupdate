@@ -35,6 +35,7 @@
  *  RFC 2535 DNS Security Extensions, 1999
  *  RFC 2845 Secret key transaction authentication for DNS (TSIG), 2000
  *  RFC 2930 Secret key establishment for DNS (TKEY), 2000
+ *  RFC 3596 DNS Extensions to Support IP Version 6, 2003
  *  RFC 3645 GSS algorithm for TSIG for DNS (GSS-TSIG), 2003
  *
  * See also:
