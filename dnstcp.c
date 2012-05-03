@@ -38,7 +38,7 @@ tcp_connect(const char *host, const char *service)
     hints.ai_socktype = SOCK_STREAM;
     error = getaddrinfo(host, service, &hints, &res0);
     if (error) {
-	warnx("%s", gai_strerror(error));
+	warnx("%s: %s", host, gai_strerror(error));
 	return -1;
     }
     s = -1;
@@ -58,7 +58,7 @@ tcp_connect(const char *host, const char *service)
 	break;  /* success */
     }
     if (s < 0)
-	warn("%s", cause);
+	warn("%s: %s", host, cause);
     freeaddrinfo(res0);
 
     return s;
@@ -106,7 +106,7 @@ tcp_connect(const char *host, const char *service)
 	fprintf(stderr, "connecting to port %u\n", ntohs(sin.sin_port));
 
     if (connect(s, (struct sockaddr *)&sin, sizeof sin) < 0) {
-	warn("connect");
+	warn("%s: connect", host);
 	close(s);
 	return -1;
     }
