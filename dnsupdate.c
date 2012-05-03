@@ -1067,7 +1067,7 @@ static int addr_to_ptr_v4(const struct in_addr *addr, char *str, size_t len)
     memcpy(&famaddr.u.inaddr, addr, sizeof(famaddr.u.inaddr));
 
     /* Convert to string, then to octet array, then to PTR string */
-    if (my_inet_aton(addr_to_str(&famaddr, v4str, sizeof(v4str)), octets, sizeof(octets)))
+    if (my_inet_aton(addr_to_str(&famaddr, v4str, sizeof(v4str)), octets, sizeof(octets)) == 0)
 	return -1;
 
     return (snprintf(str, len, "%u.%u.%u.%u.IN-ADDR.ARPA",
