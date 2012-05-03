@@ -278,7 +278,7 @@ query_soa(int s, const char *fqdn, char *domain, size_t domainsz,
     dns_wr_finish(msg);
 
     if (verbose)
-	fprintf(stderr, "sending SOA query for %s...\n", fqdn);
+	fprintf(stderr, "sending SOA query for %s\n", fqdn);
     dnstcp_sendmsg(s, msg);
 
     if (verbose > 2) {
