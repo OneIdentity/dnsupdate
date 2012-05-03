@@ -1092,6 +1092,11 @@ static int addr_to_ptr(const struct addr *addr, char *str, size_t len)
     return addr_to_ptr_v4(&addr->u.inaddr, str, len);
 }
 
+static int is_reverse_tld(const char *name) {
+    return(    strcasecmp(name, "ip6.arpa") == 0
+	    || strcasecmp(name, "in-addr.arpa") == 0);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1489,7 +1494,7 @@ main(int argc, char **argv)
 		    *auth_domain ? auth_domain : "(root)");
 
 	/* Check for non FQDNs and top-level domain names */
-	if (count_dots(auth_domain) < 1) {
+	if (count_dots(auth_domain) < 1 || is_reverse_tld(auth_domain)) {
 	    if (verbose)
 		warnx("auth domain '%.255s' is top-level", auth_domain);
 
