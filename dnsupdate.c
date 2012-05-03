@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <arpa/inet.h>
+
 #include <vas.h>
 #include <vas_gss.h>
 
@@ -964,6 +966,131 @@ config_opt(char *arg)
     return 1;
 }
 
+/**
+ * Since we can't rely on getaddrinfo() existing everywhere, our own
+ * address-tracking structure (since we only care about the address
+ * component and family).
+ */
+struct addr {
+    int family;
+    union {
+	struct in_addr inaddr;
+	struct in6_addr in6addr;
+    } u;
+};
+
+/**
+ * Parses a string into an address structure, if possible.
+ *
+ * @return 0 on success, -1 on failure with errno set to indicate the error.
+ */
+static int addr_from_str(const char *str, struct addr *addr)
+{
+    assert(str != NULL);
+    assert(addr != NULL);
+
+    /* Default error to EINVAL for inet_pton which does not set errno on
+     * invalid network address (only on EAFNOSUPPORT). */
+    errno = EINVAL;
+
+    if (inet_pton(AF_INET6, str, &addr->u.in6addr) == 1) {
+	addr->family = AF_INET6;
+	return 0;
+    }
+
+    if (inet_pton(AF_INET,  str, &addr->u.inaddr)  == 1) {
+	addr->family = AF_INET;
+	return 0;
+    }
+
+    return -1;
+}
+
+/**
+ * Convert a struct addr to string format using the given buffer that should be
+ * at least INET_ADDRSTRLEN bytes long.
+ *
+ * @return The string buffer on success or NULL on failure.
+ */
+static const char *addr_to_str(const struct addr *addr, char *str, size_t len)
+{
+    return inet_ntop(addr->family, &addr->u, str, len);
+}
+
+static char hexchar_from_uint(uint_fast8_t u) {
+    assert(u <= 16);
+    const char chars[] = "0123456789abcdef";
+    return chars[u];
+}
+
+/**
+ * Returns 0 on success, -1 on error.
+ */
+static int addr_to_ptr_v6(const struct in6_addr *addr, char *str, size_t len)
+{
+    assert(addr != NULL);
+    assert(str != NULL);
+    assert(len >= sizeof("0.0.0.0." "0.0.0.0." "0.0.0.0." "0.0.0.0."
+			 "0.0.0.0." "0.0.0.0." "0.0.0.0." "0.0.0.0."
+			 "ip6.arpa"));
+    str[0] = '\0';
+    size_t i;
+    const size_t nelems = sizeof(addr->s6_addr) / sizeof(addr->s6_addr[0]);
+    for (i = 0; i < nelems; ++i) {
+	uint_fast8_t u1, u2;
+	const size_t field = nelems - i - 1;
+	u1 = (addr->s6_addr[field] & 0xf0) >> 4;
+	u2 = (addr->s6_addr[field] & 0x0f);
+	char c1, c2;
+	c1 = hexchar_from_uint(u1);
+	c2 = hexchar_from_uint(u2);
+	str[i * 4] = c2;
+	str[i * 4 + 1] = '.';
+	str[i * 4 + 2] = c1;
+	str[i * 4 + 3] = '.';
+    }
+    memcpy(&str[64], "ip6.arpa", sizeof("ip6.arpa"));
+
+    return 0;
+}
+
+/**
+ * Returns 0 on success, -1 on error.
+ */
+static int addr_to_ptr_v4(const struct in_addr *addr, char *str, size_t len)
+{
+    char v4str[INET_ADDRSTRLEN];
+    unsigned char octets[4];
+
+    struct addr famaddr;
+    famaddr.family = AF_INET;
+    memcpy(&famaddr.u.inaddr, addr, sizeof(famaddr.u.inaddr));
+
+    /* Convert to string, then to octet array, then to PTR string */
+    if (my_inet_aton(addr_to_str(&famaddr, v4str, sizeof(v4str)), octets, sizeof(octets)))
+	return -1;
+
+    return (snprintf(str, len, "%u.%u.%u.%u.IN-ADDR.ARPA",
+	    octets[3], octets[2], octets[1], octets[0]) > -1) ? 0 : -1;
+}
+
+/**
+ * Convert an address to its PTR record format.
+ *
+ * @return 0 on success, -1 on failure.
+ */
+static int addr_to_ptr(const struct addr *addr, char *str, size_t len)
+{
+    assert(addr->family == AF_INET6 || addr->family == AF_INET);
+    assert(str != NULL);
+    assert(len > 0);
+
+    if (addr->family == AF_INET6)
+	return addr_to_ptr_v6(&addr->u.in6addr, str, len);
+
+    return addr_to_ptr_v4(&addr->u.inaddr, str, len);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -977,7 +1104,8 @@ main(int argc, char **argv)
     char *client_spn = "host/";
     int ret;
     vas_id_t *local_id;
-    unsigned char ipaddr[4];
+    struct addr addr;
+    char addrstr[INET6_ADDRSTRLEN] = {0};
     unsigned int ttl;
     int ch;
     int opterror = 0;
@@ -1063,7 +1191,7 @@ main(int argc, char **argv)
     config_init_once();
 
     /* Expect an IP address argument */
-    if (!(optind < argc && my_inet_aton(argv[optind++], ipaddr, sizeof ipaddr)))
+    if (optind >= argc || addr_from_str(argv[optind++], &addr))
 	opterror = 1;
 
     /* Expect no more arguments */
@@ -1149,8 +1277,7 @@ main(int argc, char **argv)
 	fprintf(stderr, "client_spn: %s\n", client_spn);
 	fprintf(stderr, "server_spn: %s\n", server_spn ? server_spn : "(auto)");
 	fprintf(stderr, "tsig_name:  %s\n", tsig_name);
-	fprintf(stderr, "ipaddr: %u.%u.%u.%u\n", 
-		ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
+	fprintf(stderr, "ipaddr: %s\n", addr_to_str(&addr, addrstr, sizeof(addrstr)) ?: "(invalid)");
     }
 
     /* Check policy for RegistrationEnabled == 0 */
@@ -1235,8 +1362,8 @@ main(int argc, char **argv)
 	fprintf(stderr, "hostname: %s\n", hostname);
 
     /* This is the reverse IP address we may wish to register */
-    snprintf(reverse, sizeof reverse, "%u.%u.%u.%u.IN-ADDR.ARPA",
-	    ipaddr[3], ipaddr[2], ipaddr[1], ipaddr[0]);
+    if (addr_to_ptr(&addr, reverse, sizeof(reverse)))
+	errx(1, "Failed to determine PTR record");
 
     /*
      * Connect to the system nameserver
@@ -1258,19 +1385,27 @@ main(int argc, char **argv)
     list_free(host_nameservers);
 
     /*
-     * Loop, first updating the A record, then updating the PTR record
+     * Loop, first updating the A/AAAA record, then updating the PTR record
      */
     a_registered = 0;
     for (updating_ptr = 0; updating_ptr <= 1; updating_ptr++) {
 
 	switch (updating_ptr) {
 	case 0:
-	    /* A record parameters */
-	    name = hostname;
-	    utype = DNS_TYPE_A;
-	    udata = ipaddr;
-	    udatalen = sizeof ipaddr;
-	    auth_domain = user_auth_domain;
+	    if (addr.family == AF_INET6) {
+		name = hostname;
+		utype = DNS_TYPE_AAAA;
+		udata = &addr.u.in6addr;
+		udatalen = sizeof(addr.u.in6addr);
+		auth_domain = user_auth_domain;
+	    } else {
+		/* A record parameters */
+		name = hostname;
+		utype = DNS_TYPE_A;
+		udata = &addr.u.inaddr;
+		udatalen = sizeof(addr.u.inaddr);
+		auth_domain = user_auth_domain;
+	    }
 	    break;
 	case 1:
 	    /* Logic for whether or not we update PTRs */
@@ -1292,8 +1427,9 @@ main(int argc, char **argv)
 
 	if (verbose > 1)
 	    fprintf(stderr, "starting attempt to register %s %s\n", 
-		    utype == DNS_TYPE_A ? "A" : "PTR", name);
-	
+		    utype == DNS_TYPE_A ? "A" :
+		    utype == DNS_TYPE_AAAA ? "AAAA" :
+		    "PTR", name);
 
 	/*
 	 * Step 2: Figure out which nameserver to update against
