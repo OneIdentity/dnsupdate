@@ -9,6 +9,9 @@ Because **dnsupdate** uses Kerberos to authenticate itself to the DNS server, on
 
 **Dnsupdate** is a small tool with a single purpose: Find the nearest working Active Directory DNS server and securely update the current host's DNS entry.
 
+## Supported Platforms
+All Authentication Services Supported Platforms
+
 ## Troubleshooting
-* [Troubleshooting common problems with Dynamic DNS](wiki/Troubleshooting)
-* [How dnsupdate installs itself into the operating system's DHCP client](wiki/DHCP-Installation)
+* [Troubleshooting common problems with Dynamic DNS](https://github.com/OneIdentity/dnsupdate/wiki/Troubleshooting)
+* [How dnsupdate installs itself into the operating system's DHCP client](https://github.com/OneIdentity/dnsupdate/wiki/DHCP-Installation)
