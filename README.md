@@ -8,3 +8,7 @@ The **dnsupdate** tool, provided below, performs just this communication. It aut
 Because **dnsupdate** uses Kerberos to authenticate itself to the DNS server, only the computer joined with that name can update its record.
 
 **Dnsupdate** is a small tool with a single purpose: Find the nearest working Active Directory DNS server and securely update the current host's DNS entry.
+
+## Troubleshooting
+* [Troubleshooting common problems with Dynamic DNS](wiki/Troubleshooting)
+* [How dnsupdate installs itself into the operating system's DHCP client](wiki/DHCP-Installation)
